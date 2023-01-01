@@ -1,0 +1,23 @@
+
+
+IndentWidth: 4
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Right
+AlignOperands: true 
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: false 
+  AfterStruct: false 
+  SplitEmptyFunction: true 
+  AfterControlStatement: Never
+  AfterFunction: true
+BreakBeforeBinaryOperators: All
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: true
+IncludeBlocks: Preserve
+IndentPPDirectives: BeforeHash
+MaxEmptyLinesToKeep: 2
+SpaceAfterLogicalNot: false 
+CommentPragmas:  '^\\.+'
