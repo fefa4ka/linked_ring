@@ -24,43 +24,6 @@
 
 struct linked_ring buffer; // declare a buffer for the Linked Ring
 
-/*
-## Test Cases
-
-### Edge Cases
-
-1. Test lr_init(): Test that lr_init() returns an error when the size of the
-buffer is set to 0.
-2. Test lr_put(): Test that lr_put() returns an error when the buffer is full.
-3. Test lr_get(): Test that lr_get() returns an error when the buffer is empty.
-4. Test lr_count(): Test that lr_count() returns 0 when the buffer is empty.
-5. Test lr_exists(): Test that lr_exists() returns false when the element does
-not exist in the buffer.
-
-### Panic Cases
-1. Test lr_init(): Test that lr_init() returns an error when the buffer is
-already initialized.
-2. Test lr_put(): Test that lr_put() returns an error when the buffer is not
-initialized.
-3. Test lr_get(): Test that lr_get() returns an error when the buffer is not
-initialized.
-4. Test lr_count(): Test that lr_count() returns an error when the buffer is not
-initialized.
-5. Test lr_exists(): Test that lr_exists() returns an error when the buffer is
-not initialized.
-
-### Unsolvable Cases
-1. Test lr_init(): Test that lr_init() returns an error when the size of the
-buffer is set to a negative value.
-2. Test lr_put(): Test that lr_put() returns an error when the owner does not
-exist in the buffer.
-3. Test lr_get(): Test that lr_get() returns an error when the owner does not
-exist in the buffer.
-4. Test lr_count(): Test that lr_count() returns an error when the owner does
-not exist in the buffer.
-5. Test lr_exists(): Test that lr_exists() returns an error when the owner does
-not exist in the buffer.
-*/
 
 int main()
 {

@@ -1,0 +1,147 @@
+<svg version="1.1" baseProfile="full" width="282.3" height="581.0" viewbox="0 0 282.25 581" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events">
+		<desc >#.free: dashed
+	#.write: stroke=green dashed
+	#.read: fill=#8f8
+	
+	
+	[Linked Ring|size: 4;read: Cell_0;write: Cell_1|
+	[Cells|
+	[&lt;read&gt;Cell_0|owner: 0x1;data: 0xFF]
+	[Cell_0]o-&gt;[&lt;write&gt;Cell_1]
+	[Cell_1]
+	[Cell_1]o-&gt;[&lt;free&gt;Cell_2]
+	[Cell_2]
+	[Cell_2]o-&gt;[&lt;free&gt;Cell_3]
+	[Cell_3]
+	[Cell_3]o-&gt;[Cell_0]
+	]
+	]</desc>
+	<g stroke-width="1.0" text-align="left" font="12pt Helvetica, Arial, sans-serif" font-size="12pt" font-family="Helvetica" font-weight="bold" font-style="normal">
+			<g transform="translate(0.5, 0.5)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" stroke-width="3.0" stroke-linejoin="round" stroke-linecap="round" stroke="#33322E">
+				<g stroke="transparent" fill="transparent">
+					<rect x="0.0" y="0.0" height="581.0" width="282.3" stroke="none"></rect>
+				</g>
+			<g transform="translate(8, 8)" fill="#33322E">
+					<g transform="translate(20, 20)">
+						<g data-name="Linked Ring">
+							<g fill="#eee8d5" stroke="#33322E" data-name="Linked Ring">
+								<rect x="0.0" y="0.0" height="525.0" width="226.3" data-name="Linked Ring"></rect>
+							<path d="M0.0 31.0 L226.3 31.0" fill="none" data-name="Linked Ring"></path>
+							<path d="M0.0 92.0 L226.3 92.0" fill="none" data-name="Linked Ring"></path>
+							</g>
+						<g transform="translate(0, 0)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" data-name="Linked Ring">
+								<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Linked Ring">
+									<text x="105.1" y="13.5" stroke="none" text-anchor="middle" data-name="Linked Ring">Linked Ring</text>
+								
+								</g>
+							</g>
+						<g transform="translate(0, 31)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Linked Ring">
+								<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="Linked Ring">
+									<text x="0.0" y="13.5" stroke="none" data-name="Linked Ring">size: 4</text>
+								<text x="0.0" y="28.5" stroke="none" data-name="Linked Ring">read: Cell_0</text>
+								<text x="0.0" y="43.5" stroke="none" data-name="Linked Ring">write: Cell_1</text>
+								
+								</g>
+							</g>
+						<g transform="translate(0, 92)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Linked Ring">
+								<g transform="translate(8, 8)" fill="#33322E" data-name="Linked Ring">
+									<g transform="translate(20, 20)" data-name="Linked Ring">
+										<g data-name="Cells">
+											<g fill="#fdf6e3" stroke="#33322E" data-name="Cells">
+												<rect x="0.0" y="0.0" height="377.0" width="170.3" data-name="Cells"></rect>
+											<path d="M0.0 31.0 L170.3 31.0" fill="none" data-name="Cells"></path>
+											</g>
+										<g transform="translate(0, 0)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" data-name="Cells">
+												<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cells">
+													<text x="77.1" y="13.5" stroke="none" text-anchor="middle" data-name="Cells">Cells</text>
+												
+												</g>
+											</g>
+										<g transform="translate(0, 31)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cells">
+												<g transform="translate(8, 8)" fill="#33322E" data-name="Cells">
+													<g transform="translate(20, 20)" fill="#33322E" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cells">
+														<path d="M34.0 92.9 L31.5 97 L31.5 110.33333333333333 L31.5 110.3 " fill="none" data-name="Cells"></path>
+													<path d="M26.2 103.7 L31.5 110.3 L36.8 103.7 L31.5 117.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M43.4 87.7 L34.0 92.9 L34.3 82.2 L43.7 77.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M31.5 166.7 L31.5 168 L31.5 181.33333333333334 L31.5 181.3 " fill="none" data-name="Cells"></path>
+													<path d="M26.2 174.7 L31.5 181.3 L36.8 174.7 L31.5 188.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M36.8 157.3 L31.5 166.7 L26.2 157.3 L31.5 148.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M31.5 237.7 L31.5 239 L46.9102884729987 254.30252421794276 L46.9 254.3 " fill="none" data-name="Cells"></path>
+													<path d="M38.4 253.4 L46.9 254.3 L45.9 245.8 L51.6 259.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M36.8 228.3 L31.5 237.7 L26.2 228.3 L31.5 219.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M96.1 245.8 L103 239 L103 203.5 L103 203.5 L103 168 L103 168 L103 132.5 L103 132.5 L103 97 L103 97 L94.2541111741376 82.68854555767973 L94.3 82.7 " fill="none" data-name="Cells"></path>
+													<path d="M102.3 85.6 L94.3 82.7 L93.2 91.2 L90.8 77.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M85.7 248.6 L96.1 245.8 L93.2 256.2 L82.9 259.0 Z" data-name="Cells"></path>
+														</g>
+													<g data-name="Cell_0">
+															<g fill="#8f8" stroke="#33322E" data-name="Cell_0">
+																<rect x="20.0" y="0.0" height="77.0" width="94.0" data-name="Cell_0"></rect>
+															<path d="M20.0 31.0 L114.0 31.0" fill="none" data-name="Cell_0"></path>
+															</g>
+														<g transform="translate(20, 0)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_0">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_0">
+																	<text x="39.0" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_0">Cell_0</text>
+																
+																</g>
+															</g>
+														<g transform="translate(20, 31)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_0">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="Cell_0">
+																	<text x="0.0" y="13.5" stroke="none" data-name="Cell_0">owner: 0x1</text>
+																<text x="0.0" y="28.5" stroke="none" data-name="Cell_0">data: 0xFF</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_1">
+															<g fill="#eee8d5" stroke="green" stroke-dasharray="6 6" data-name="Cell_1">
+																<rect x="0.0" y="117.0" height="31.0" width="63.0" data-name="Cell_1"></rect>
+															</g>
+														<g transform="translate(0, 117)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_1">
+																<g transform="translate(8, 8)" fill="green" text-align="center" data-name="Cell_1">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_1">Cell_1</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_2">
+															<g fill="#eee8d5" stroke="#33322E" stroke-dasharray="6 6" data-name="Cell_2">
+																<rect x="0.0" y="188.0" height="31.0" width="63.0" data-name="Cell_2"></rect>
+															</g>
+														<g transform="translate(0, 188)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_2">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_2">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_2">Cell_2</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_3">
+															<g fill="#eee8d5" stroke="#33322E" stroke-dasharray="6 6" data-name="Cell_3">
+																<rect x="36.0" y="259.0" height="31.0" width="63.0" data-name="Cell_3"></rect>
+															</g>
+														<g transform="translate(36, 259)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_3">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_3">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_3">Cell_3</text>
+																
+																</g>
+															</g>
+														</g>
+													</g>
+												</g>
+											</g>
+										</g>
+									</g>
+								</g>
+							</g>
+						</g>
+					</g>
+				</g>
+			</g>
+		</g>
+	</svg>

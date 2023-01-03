@@ -63,7 +63,7 @@ lr_result_t add_random_data()
     count              = lr_count(&buffer);
     if (BUFFER_SIZE > count) {
         test_assert(result == LR_OK,
-                    "Add element to buffer (owner: %d, data: %d, length: %d)",
+                    "Add element to buffer (owner: %x, data: %x, length: %d)",
                     owner, value, count);
 
         lr_dump(&buffer);
@@ -84,7 +84,7 @@ lr_result_t get_random_owner_data()
     if (result == LR_OK) {
         test_assert(
             count != 0,
-            "Get element from buffer (value: %d, owner: %d, remain: %d)", value,
+            "Get element from buffer (value: %x, owner: %x, remain: %d)", value,
             owner, count - 1);
         lr_dump(&buffer);
     }

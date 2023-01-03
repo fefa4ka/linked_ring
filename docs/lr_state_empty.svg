@@ -1,0 +1,138 @@
+<svg version="1.1" baseProfile="full" width="271.0" height="535.0" viewbox="0 0 271 535" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events">
+		<desc >#.free: dashed
+	#.write: stroke=green dashed
+	#.read: fill=#8f8
+	
+	[LinkedRing|size: 4;read: NULL;write: Cell_0|
+	[Cells|
+	[&lt;write&gt;Cell_0]
+	[Cell_0]o-&gt;[&lt;free&gt;Cell_1]
+	[Cell_1]
+	[Cell_1]o-&gt;[&lt;free&gt;Cell_2]
+	[Cell_2]
+	[Cell_2]o-&gt;[&lt;free&gt;Cell_3]
+	[Cell_3]
+	[Cell_3]o-&gt;[Cell_0]
+	]
+	]</desc>
+	<g stroke-width="1.0" text-align="left" font="12pt Helvetica, Arial, sans-serif" font-size="12pt" font-family="Helvetica" font-weight="bold" font-style="normal">
+			<g transform="translate(0.5, 0.5)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" stroke-width="3.0" stroke-linejoin="round" stroke-linecap="round" stroke="#33322E">
+				<g stroke="transparent" fill="transparent">
+					<rect x="0.0" y="0.0" height="535.0" width="271.0" stroke="none"></rect>
+				</g>
+			<g transform="translate(8, 8)" fill="#33322E">
+					<g transform="translate(20, 20)">
+						<g data-name="LinkedRing">
+							<g fill="#eee8d5" stroke="#33322E" data-name="LinkedRing">
+								<rect x="0.0" y="0.0" height="479.0" width="215.0" data-name="LinkedRing"></rect>
+							<path d="M0.0 31.0 L215.0 31.0" fill="none" data-name="LinkedRing"></path>
+							<path d="M0.0 92.0 L215.0 92.0" fill="none" data-name="LinkedRing"></path>
+							</g>
+						<g transform="translate(0, 0)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" data-name="LinkedRing">
+								<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="LinkedRing">
+									<text x="99.5" y="13.5" stroke="none" text-anchor="middle" data-name="LinkedRing">LinkedRing</text>
+								
+								</g>
+							</g>
+						<g transform="translate(0, 31)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="LinkedRing">
+								<g transform="translate(8, 8)" fill="#33322E" text-align="left" data-name="LinkedRing">
+									<text x="0.0" y="13.5" stroke="none" data-name="LinkedRing">size: 4</text>
+								<text x="0.0" y="28.5" stroke="none" data-name="LinkedRing">read: NULL</text>
+								<text x="0.0" y="43.5" stroke="none" data-name="LinkedRing">write: Cell_0</text>
+								
+								</g>
+							</g>
+						<g transform="translate(0, 92)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="LinkedRing">
+								<g transform="translate(8, 8)" fill="#33322E" data-name="LinkedRing">
+									<g transform="translate(20, 20)" data-name="LinkedRing">
+										<g data-name="Cells">
+											<g fill="#fdf6e3" stroke="#33322E" data-name="Cells">
+												<rect x="0.0" y="0.0" height="331.0" width="159.0" data-name="Cells"></rect>
+											<path d="M0.0 31.0 L159.0 31.0" fill="none" data-name="Cells"></path>
+											</g>
+										<g transform="translate(0, 0)" font-family="Helvetica" font-size="12pt" font-weight="bold" font-style="normal" data-name="Cells">
+												<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cells">
+													<text x="71.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cells">Cells</text>
+												
+												</g>
+											</g>
+										<g transform="translate(0, 31)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cells">
+												<g transform="translate(8, 8)" fill="#33322E" data-name="Cells">
+													<g transform="translate(20, 20)" fill="#33322E" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cells">
+														<path d="M38.4 44.2 L31.5 51 L31.5 64.33333333333333 L31.5 64.3 " fill="none" data-name="Cells"></path>
+													<path d="M26.2 57.7 L31.5 64.3 L36.8 57.7 L31.5 71.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M48.8 41.4 L38.4 44.2 L41.3 33.8 L51.6 31.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M31.5 120.7 L31.5 122 L31.5 135.33333333333334 L31.5 135.3 " fill="none" data-name="Cells"></path>
+													<path d="M26.2 128.7 L31.5 135.3 L36.8 128.7 L31.5 142.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M36.8 111.3 L31.5 120.7 L26.2 111.3 L31.5 102.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M31.5 191.7 L31.5 193 L46.9102884729987 208.30252421794276 L46.9 208.3 " fill="none" data-name="Cells"></path>
+													<path d="M38.4 207.4 L46.9 208.3 L45.9 199.8 L51.6 213.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M36.8 182.3 L31.5 191.7 L26.2 182.3 L31.5 173.0 Z" data-name="Cells"></path>
+														</g>
+													<path d="M96.1 199.8 L103 193 L103 157.5 L103 157.5 L103 122 L103 122 L103 86.5 L103 86.5 L103 51 L103 51 L87.58971152700131 35.69747578205724 L87.6 35.7 " fill="none" data-name="Cells"></path>
+													<path d="M96.1 36.6 L87.6 35.7 L88.6 44.2 L82.9 31.0 Z" data-name="Cells"></path>
+													<g fill="#eee8d5" data-name="Cells">
+															<path d="M85.7 202.6 L96.1 199.8 L93.2 210.2 L82.9 213.0 Z" data-name="Cells"></path>
+														</g>
+													<g data-name="Cell_0">
+															<g fill="#eee8d5" stroke="green" stroke-dasharray="6 6" data-name="Cell_0">
+																<rect x="36.0" y="0.0" height="31.0" width="63.0" data-name="Cell_0"></rect>
+															</g>
+														<g transform="translate(36, 0)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_0">
+																<g transform="translate(8, 8)" fill="green" text-align="center" data-name="Cell_0">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_0">Cell_0</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_1">
+															<g fill="#eee8d5" stroke="#33322E" stroke-dasharray="6 6" data-name="Cell_1">
+																<rect x="0.0" y="71.0" height="31.0" width="63.0" data-name="Cell_1"></rect>
+															</g>
+														<g transform="translate(0, 71)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_1">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_1">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_1">Cell_1</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_2">
+															<g fill="#eee8d5" stroke="#33322E" stroke-dasharray="6 6" data-name="Cell_2">
+																<rect x="0.0" y="142.0" height="31.0" width="63.0" data-name="Cell_2"></rect>
+															</g>
+														<g transform="translate(0, 142)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_2">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_2">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_2">Cell_2</text>
+																
+																</g>
+															</g>
+														</g>
+													<g data-name="Cell_3">
+															<g fill="#eee8d5" stroke="#33322E" stroke-dasharray="6 6" data-name="Cell_3">
+																<rect x="36.0" y="213.0" height="31.0" width="63.0" data-name="Cell_3"></rect>
+															</g>
+														<g transform="translate(36, 213)" font-family="Helvetica" font-size="12pt" font-weight="normal" font-style="normal" data-name="Cell_3">
+																<g transform="translate(8, 8)" fill="#33322E" text-align="center" data-name="Cell_3">
+																	<text x="23.5" y="13.5" stroke="none" text-anchor="middle" data-name="Cell_3">Cell_3</text>
+																
+																</g>
+															</g>
+														</g>
+													</g>
+												</g>
+											</g>
+										</g>
+									</g>
+								</g>
+							</g>
+						</g>
+					</g>
+				</g>
+			</g>
+		</g>
+	</svg>
