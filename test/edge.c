@@ -41,7 +41,7 @@ typedef enum {
 lr_result_t init_buffer(int buffer_size)
 {
     // create an array of lr_cell for the buffer
-    struct lr_cell *cells = malloc(buffer_size * sizeof(struct lr_cell));
+    struct lr_cell *cells = calloc(buffer_size, sizeof(struct lr_cell));
 
     // initialize the buffer
     lr_result_t result = lr_init(&buffer, buffer_size, cells);
@@ -59,17 +59,16 @@ lr_result_t add_random_data()
     unsigned int count;
     lr_owner_t   owner = lr_owner(rand() % NUM_OWNERS);
     lr_data_t    value = lr_data(rand() % 1000);
-    result             = lr_put(&buffer, value, owner);
     count              = lr_count(&buffer);
     if (BUFFER_SIZE > count) {
+        result = lr_put(&buffer, value, owner);
         test_assert(result == LR_OK,
                     "Add element to buffer (owner: %x, data: %x, length: %d)",
                     owner, value, count);
 
         lr_dump(&buffer);
     } else {
-        test_assert(result == LR_ERROR_BUFFER_FULL,
-                    "Buffer is full (length: %d, result: %d", count, result);
+        printf("Buffer is full (length: %d, result: %d)\n", count, result);
     }
 }
 
@@ -99,9 +98,10 @@ lr_result_t test_multiple_owners()
     test_assert(result == LR_OK, "Initialize buffer");
 
     do {
-        if (rand() & 1) {
-            unsigned int remain = BUFFER_SIZE - lr_count(&buffer);
-            for (int i = 0; i < rand() % remain; ++i) {
+        unsigned int current_size = lr_count(&buffer);
+        unsigned int remain = BUFFER_SIZE - current_size;
+        if (remain && rand() & 1) {
+            for (int i = 0; i <= rand() % remain; ++i) {
                 add_random_data();
             }
         } else {

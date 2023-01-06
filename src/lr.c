@@ -79,10 +79,13 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
     if (!cell->next) {
         if ((cell - lr->cells) < (lr->size - 1)) {
             cell->next = cell + 1;
+        } else {
+            cell->next = lr->read;
         }
     }
 
-    /* If the next cell is the read position, set the write position to 0 */
+    /* If the next cell is the read position, set the write position to 0
+     * that mean filled buffer */
     if (cell->next == lr->read) {
         lr->write = 0;
     } else {
@@ -123,9 +126,8 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
             if (previous_cell) {
                 /* Link cells between */
                 if (readable_cell->next == needle) {
-                    readable_cell->next = lr->write;
+                    readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write           = readable_cell;
-                    previous_cell->next = readable_cell;
 
                     return LR_OK;
                 } else {
@@ -135,7 +137,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
                 /* If readed last available cell */
                 if (readable_cell->next == needle) {
                     lr->read  = 0;
-                    readable_cell->next = lr->write;
+                    readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write = readable_cell;
 
                     return LR_OK;
@@ -168,6 +170,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     } else {
         /* Last iteration. Link freed cell as next */
         previous_cell->next = freed_cell;
+        freed_cell->next = lr->write ? lr->write : lr->read;
 
         lr->write = freed_cell;
     }
