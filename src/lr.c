@@ -1,26 +1,66 @@
 #include "lr.h"
 #include <stdio.h>
 
+
+/* lock the mutex if lock function provided, no op otherwise */
+#define lock(lr, owner) do { \
+  if (lr->lock != NULL) { \
+    enum lr_result ret = lr->lock(lr->mutex_state, owner); \
+    if (ret != LR_OK) { \
+        return ret; \
+    } \
+   } \
+} while (0)
+
+/* unlock the mutex if unlock function provided and then return ret  */
+#define unlock_and_return(lr, owner, ret) do { \
+  if (lr->unlock != NULL) { \
+    return lr->unlock(lr->mutex_state, lr_owner(owner)); \
+   } \
+   return ret; \
+} while (0)
+
+/* additional overload for returning success */
+#define unlock_and_succeed(lr, owner) unlock_and_return(lr, owner, LR_OK)
+
+
+/**
+ * This function counts the number of elements owned by the specified owner in the linked ring buffer.
+ * If limit is specified, it will stop counting after reaching the limit.
+ * 
+ * @param lr: pointer to the linked ring structure
+ * @param limit: maximum number of elements to count (0 for no limit)
+ * @param owner: the owner of the elements to count (0 for all owners)
+ * 
+ * @return the number of elements owned by the specified owner (up to the limit, if specified)
+ */
 uint16_t lr_count_limited_owned(struct linked_ring *lr, uint16_t limit,
                                 lr_owner_t owner)
 {
+    lock(lr, owner);
     uint8_t         length  = 0;
     struct lr_cell *counter = lr->read;
     struct lr_cell *needle  = lr->write ? lr->write : lr->read;
 
-    /* Return 0 if the buffer is empty */
+    /* return 0 if the buffer is empty */
     if (lr->read == 0)
-        return 0;
+    {
+        unlock_and_succeed(lr, owner);
+    }
 
-    /* Return 0 if the owner is not present in the buffer */
+    /* return 0 if the owner is not present in the buffer */
     if (owner && (lr->owners & owner) != owner)
-        return 0;
+    {
+        unlock_and_succeed(lr, owner);
+    }
 
-    /* Full buffer */
+    /* full buffer */
     if (!owner && lr->write == 0)
-        return lr->size;
+    {
+        unlock_and_return(lr, owner, lr->size);
+    }
 
-    /* Iterate through the buffer and count the elements owned by the specified
+    /* iterate through the buffer and count the elements owned by the specified
      * owner */
     do {
         if (!owner || counter->owner == owner)
@@ -31,17 +71,19 @@ uint16_t lr_count_limited_owned(struct linked_ring *lr, uint16_t limit,
             break;
     } while (counter != needle || (limit && limit == length));
 
-    return length;
+    unlock_and_return(lr, owner, length);
 }
 
-/* This function initializes a new linked ring buffer.
- * Parameters:
- *     lr: pointer to the linked ring structure to be initialized
- *     size: size of the buffer, in number of elements
- *     cells: pointer to the array of cells that will make up the buffer
- * Returns:
- *     LR_OK: if the initialization was successful
- *     LR_ERROR_NOMEMORY: if the cells parameter is NULL or size is 0
+
+/**
+ * This function initializes a new linked ring buffer.
+ * 
+ * @param lr: pointer to the linked ring structure to be initialized
+ * @param size: size of the buffer, in number of elements
+ * @param cells: pointer to the array of cells that will make up the buffer
+ * 
+ * @return LR_OK: if the initialization was successful
+ *         LR_ERROR_NOMEMORY: if the cells parameter is NULL or size is 0
  */
 lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
                     struct lr_cell *cells)
@@ -55,17 +97,49 @@ lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
     lr->owners = 0;
     lr->read = 0;
 
-    // Set the write position to the first cell in the buffer
+    /* Set the write position to the first cell in the buffer */
     lr->write = lr->cells;
+
+    /* Use lr_set_mutex to initialize these fields */
+    lr->lock = NULL;
+    lr->unlock = NULL;
+    lr->mutex_state = NULL;
 
     return LR_OK;
 }
 
+/**
+ * This function sets the mutex for a linked ring buffer.
+ * 
+ * @param lr: pointer to the linked ring structure to be initialized
+ * @param attr: mutex attributes
+ */
+void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr)
+{
+    lr->lock = attr->lock;
+    lr->unlock = attr->unlock;
+    lr->mutex_state = attr->state;
+}
+
+/**
+ * This function adds a new element to the linked ring buffer.
+ * 
+ * @param lr: pointer to the linked ring structure
+ * @param data: the data to be added to the buffer
+ * @param owner: the owner of the new element
+ * 
+ * @return LR_OK: if the element was successfully added
+ *         LR_ERROR_BUFFER_FULL: if the buffer is full and the element could not be added
+ */
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
 {
+    lock(lr, owner);
     /* Check if the buffer is full */
     if (!lr->write && lr->read)
-        return LR_ERROR_BUFFER_FULL;
+    {
+        unlock_and_return(lr, owner, LR_ERROR_BUFFER_FULL);
+    }
+
 
     /* Allocate a cell for the data */
     struct lr_cell *cell = lr->write ? lr->write : lr->cells;
@@ -97,29 +171,57 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
     if (!lr->read)
         lr->read = cell;
 
-    return LR_OK;
+    unlock_and_succeed(lr, owner);
 }
 
+/**
+ * This function adds a new string element to the linked ring buffer.
+ * 
+ * @param lr: pointer to the linked ring structure
+ * @param data: the string to be added to the buffer
+ * @param owner: the owner of the new element
+ * 
+ * @return LR_OK: if the element was successfully added
+ *         LR_ERROR_BUFFER_FULL: if the buffer is full and the element could not be added
+ */
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
                            lr_owner_t owner)
 {
+    /* Loop through each character in the string */
     while (*data) {
+        /* Add character to the buffer */
         if (lr_put(lr, *(data++), owner) == LR_ERROR_BUFFER_FULL)
+            /* If the buffer is full, return an error */
             return LR_ERROR_BUFFER_FULL;
     };
 
+    /* If all characters were added successfully */
     return LR_OK;
 }
 
+/**
+ * This function retrieves the next element from the linked ring buffer.
+ * 
+ * @param lr: pointer to the linked ring structure
+ * @param data: pointer to the variable where the retrieved data will be stored
+ * @param owner: the owner of the retrieved element
+ * 
+ * @return LR_OK: if the element was successfully retrieved
+ *         LR_ERROR_BUFFER_EMPTY: if the buffer is empty and no element could be retrieved
+ */
 lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
 {
+    lock(lr, owner);
     struct lr_cell *readable_cell = lr->read;
     struct lr_cell *previous_cell = 0;
     struct lr_cell *freed_cell    = 0;
+/* Set the needle to the write position if it exists, otherwise set it to the read position */
     struct lr_cell *needle        = lr->write ? lr->write : lr->read;
 
-    if (lr_count_owned(lr, owner) == 0)
-        return LR_ERROR_BUFFER_EMPTY;
+    if (owner && (lr->owners & owner) != owner)
+    {
+        unlock_and_return(lr, owner, LR_ERROR_BUFFER_EMPTY);
+    }
 
     /* Flush owners, and set again during buffer reading */
     lr->owners = 0;
@@ -130,8 +232,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         if (!owner || readable_cell->owner == owner) {
             *data = readable_cell->data;
             /* For skipping next match set impossible owner */
-            // TODO: max lr_owner_t
-            owner = 0xFFFF;
+            owner = lr_invalid_owner;
 
             /* Reassembly linking ring */
             if (previous_cell) {
@@ -139,8 +240,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
                 if (readable_cell->next == needle) {
                     readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write           = readable_cell;
-
-                    return LR_OK;
+                    unlock_and_succeed(lr, owner);
                 } else {
                     previous_cell->next = readable_cell->next;
                 }
@@ -150,8 +250,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
                     lr->read  = 0;
                     readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write = readable_cell;
-
-                    return LR_OK;
+                    unlock_and_succeed(lr, owner);
                 } else {
                     /* Once case when read pointer changing
                      * If readed first cell */
@@ -176,8 +275,8 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         readable_cell = next_cell;
     } while (readable_cell != needle && readable_cell);
 
-    if (owner != 0xFFFF) {
-        return LR_ERROR_BUFFER_EMPTY;
+    if (owner != lr_invalid_owner) {
+        unlock_and_return(lr, owner, LR_ERROR_BUFFER_EMPTY);
     } else {
         /* Last iteration. Link freed cell as next */
         previous_cell->next = freed_cell;
@@ -186,14 +285,16 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         lr->write = freed_cell;
     }
 
-    return LR_OK;
+    unlock_and_succeed(lr, owner);
 }
 
 lr_result_t lr_dump(struct linked_ring *lr)
 {
     struct lr_cell *needle = lr->write ? lr->write : lr->read;
     if (lr_count(lr) == 0)
+    {
         return LR_ERROR_BUFFER_EMPTY;
+    }
 
     printf("\nLinked ring buffer dump\n");
     printf("=======================\n");
@@ -204,6 +305,9 @@ lr_result_t lr_dump(struct linked_ring *lr)
     printf("size    : %d\n", lr_count(lr));
     printf("owners  : 0x%X\n", lr->owners);
     printf("\n");
+
+    if(!lr->read)
+        return LR_OK;
 
     struct lr_cell *readable_cell = lr->read;
     do {
@@ -216,6 +320,4 @@ lr_result_t lr_dump(struct linked_ring *lr)
     } while (readable_cell && readable_cell != needle);
 
     printf("%x\n", lr->write);
-
-    return LR_OK;
 }

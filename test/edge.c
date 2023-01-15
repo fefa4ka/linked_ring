@@ -53,6 +53,8 @@ lr_result_t init_buffer(int buffer_size)
     return LR_OK;
 }
 
+
+
 lr_result_t add_random_data()
 {
     lr_result_t  result;
