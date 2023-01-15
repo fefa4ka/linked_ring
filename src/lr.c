@@ -68,7 +68,7 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
         return LR_ERROR_BUFFER_FULL;
 
     /* Allocate a cell for the data */
-    struct lr_cell *cell = lr->write;
+    struct lr_cell *cell = lr->write ? lr->write : lr->cells;
     cell->data           = data;
     cell->owner          = owner;
 
@@ -96,6 +96,17 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
     /* If the read position is not set, set it to the current cell */
     if (!lr->read)
         lr->read = cell;
+
+    return LR_OK;
+}
+
+lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
+                           lr_owner_t owner)
+{
+    while (*data) {
+        if (lr_put(lr, *(data++), owner) == LR_ERROR_BUFFER_FULL)
+            return LR_ERROR_BUFFER_FULL;
+    };
 
     return LR_OK;
 }
