@@ -47,6 +47,25 @@ struct lr_cell {
                            // together in a circular fashion.
 };
 
+/* Provides a mechanism for a thread to exclusively access the linked ring. 
+ * The mutex should be recursive. 
+ * This means that the calling thread may call lock() multiple times before calling unlock(). 
+ * The mutex should be available to other threads only after the the thread that owns the mutex calls unlock() as many times as it called lock(). 
+*/
+struct lr_recursive_mutex
+{
+    /* Blocks until the mutex is acquired.
+     * Returns LR_OK on success and an error code otherwise. 
+     */
+    enum lr_result (*lock)();
+    /* Release the mutex. 
+     * Since the mutex is recursive, the mutex should only be available to other threads once unlock() has been called as many times as lock().
+     * Returns LR_OK on success and an error code otherwise. 
+    */
+    enum lr_result (*unlock)();
+};
+
+
 struct linked_ring {
     struct lr_cell *cells; // Allocated array of cellsin the buffer
     unsigned int    size;  // Maximum number of elements that can be stored
@@ -55,6 +74,8 @@ struct linked_ring {
 
     struct lr_cell *read;  // Cell that is currently being read from
     struct lr_cell *write; // Cell that is currently being written to
+
+    struct lr_recursive_mutex mutex; // used to make operations thread-safe
 };
 
 uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
@@ -65,8 +86,7 @@ uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
 #define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
 
 lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
-                    struct lr_cell *cells);
-
+                    struct lr_cell *cells, struct lr_recursive_mutex mutex);
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
                            lr_owner_t owner);

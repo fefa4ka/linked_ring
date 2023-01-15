@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 #define log_print(type, message, ...)                                          \
     printf(type "\t" message "\n", ##__VA_ARGS__)
 #define log_debug(type, message, ...)                                          \
@@ -25,19 +26,31 @@
 struct linked_ring buffer; // declare a buffer for the Linked Ring
 
 
+// used to mock lock and unlock for single-threaded tests
+enum lr_result always_return_ok() 
+{
+    return LR_OK;
+}
+
 int main()
 {
+
+    struct lr_recursive_mutex mutex;
+    mutex.lock = always_return_ok;
+    mutex.unlock = always_return_ok;
+
+    
     // allocate memory for the cells in the Linked Ring buffer
     lr_result_t     result;
     unsigned int    size  = 10;
     struct lr_cell *cells = malloc(size * sizeof(struct lr_cell));
 
     // Test lr_init() with size 0
-    result = lr_init(&buffer, 0, cells);
+    result = lr_init(&buffer, 0, cells, mutex);
     test_assert(result == LR_ERROR_NOMEMORY, "Buffer could not be 0 size");
 
     // Test lr_init() with size
-    result = lr_init(&buffer, size, cells);
+    result = lr_init(&buffer, size, cells, mutex);
     test_assert(result == LR_OK, "Buffer with size %d should be initialized",
                 size);
 
