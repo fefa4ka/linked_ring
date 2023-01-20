@@ -37,25 +37,14 @@ typedef enum {
     NUM_OWNERS
 } owner_t;
 
-// used to mock lock and unlock for single-threaded tests
-enum lr_result always_return_ok() 
-{
-    return LR_OK;
-}
-
-
 // function to initialize the linked ring buffer
 lr_result_t init_buffer(int buffer_size)
 {
     // create an array of lr_cell for the buffer
     struct lr_cell *cells = calloc(buffer_size, sizeof(struct lr_cell));
 
-    struct lr_recursive_mutex mutex;
-    mutex.lock = always_return_ok;
-    mutex.unlock = always_return_ok;
-
     // initialize the buffer
-    lr_result_t result = lr_init(&buffer, buffer_size, cells, mutex);
+    lr_result_t result = lr_init(&buffer, buffer_size, cells);
     if (result != LR_OK) {
         log_error("Failed to initialize buffer");
         return LR_ERROR_UNKNOWN;

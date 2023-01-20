@@ -52,19 +52,26 @@ struct lr_cell {
  * This means that the calling thread may call lock() multiple times before calling unlock(). 
  * The mutex should be available to other threads only after the the thread that owns the mutex calls unlock() as many times as it called lock(). 
 */
-struct lr_recursive_mutex
-{
+struct lr_mutex_attr 
+{ 
+    /* Shared state for lock and unlock functions. */
+    void *state; 
+
     /* Blocks until the mutex is acquired.
      * Returns LR_OK on success and an error code otherwise. 
-     */
-    enum lr_result (*lock)();
+     * Is a no op if NULL. 
+     * owner is 0 if not known.
+     */    
+    enum lr_result (*lock)(void *state, lr_owner_t owner); 
+    
     /* Release the mutex. 
      * Since the mutex is recursive, the mutex should only be available to other threads once unlock() has been called as many times as lock().
-     * Returns LR_OK on success and an error code otherwise. 
+     * Returns LR_OK on success and an error code otherwise.
+     * Is a no op if NULL. 
     */
-    enum lr_result (*unlock)();
-};
+    enum lr_result (*unlock)(void *state); 
 
+};
 
 struct linked_ring {
     struct lr_cell *cells; // Allocated array of cellsin the buffer
@@ -75,7 +82,9 @@ struct linked_ring {
     struct lr_cell *read;  // Cell that is currently being read from
     struct lr_cell *write; // Cell that is currently being written to
 
-    struct lr_recursive_mutex mutex; // used to make operations thread-safe
+    enum lr_result (*lock)(void *state, lr_owner_t owner); // used to make operations thread-safe
+    enum lr_result (*unlock)(void *state);
+    void *mutex_state;
 };
 
 uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
@@ -86,7 +95,8 @@ uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
 #define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
 
 lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
-                    struct lr_cell *cells, struct lr_recursive_mutex mutex);
+                    struct lr_cell *cells);
+void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
                            lr_owner_t owner);

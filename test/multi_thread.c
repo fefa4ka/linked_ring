@@ -27,18 +27,20 @@
 struct linked_ring buffer; // declare a buffer for the Linked Ring
 pthread_mutex_t mutex;
 
-enum lr_result lock() 
+enum lr_result lock(void *state, lr_owner_t owner) 
 {
-    if (pthread_mutex_lock(&mutex) == 0)
+    pthread_mutex_t *mutex = (pthread_mutex_t *) state;
+    if (pthread_mutex_lock(mutex) == 0)
     {
         return LR_OK; 
     }
     return LR_ERROR_UNKNOWN;
 }
 
-lr_result_t unlock()
+lr_result_t unlock(void *state)
 {
-    if (pthread_mutex_unlock(&mutex) == 0)
+    pthread_mutex_t *mutex = (pthread_mutex_t *) state;
+    if (pthread_mutex_unlock(mutex) == 0)
     {
         return LR_OK;
     }
@@ -51,17 +53,19 @@ lr_result_t init_buffer(int buffer_size)
     // create an array of lr_cell for the buffer
     struct lr_cell *cells = calloc(buffer_size, sizeof(struct lr_cell));
 
-    struct lr_recursive_mutex mutex;
-    mutex.lock = lock;
-    mutex.unlock = unlock;
-
-
     // initialize the buffer
-    lr_result_t result = lr_init(&buffer, buffer_size, cells, mutex);
+    lr_result_t result = lr_init(&buffer, buffer_size, cells);
     if (result != LR_OK) {
         log_error("Failed to initialize buffer");
         return LR_ERROR_UNKNOWN;
     }
+
+
+    struct lr_mutex_attr attr;
+    attr.lock = lock;
+    attr.unlock = unlock;    
+    attr.state = (void *) &mutex;
+    lr_set_mutex(&buffer, &attr);
 
     return LR_OK;
 }
