@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
 #define log_print(type, message, ...)                                          \
     printf(type "\t" message "\n", ##__VA_ARGS__)
 #define log_debug(type, message, ...)                                          \
@@ -24,9 +25,8 @@
 
 struct linked_ring buffer; // declare a buffer for the Linked Ring
 
-
 int main()
-{
+{    
     // allocate memory for the cells in the Linked Ring buffer
     lr_result_t     result;
     unsigned int    size  = 10;

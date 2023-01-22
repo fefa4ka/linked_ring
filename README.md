@@ -153,6 +153,9 @@ Therefore, memory consumption of Linked Ring Buffer in multiple producer case is
 
 As we can see, Linked Ring Buffer uses less memory in multiple consumer case.
 
+#### Thread-safety
+- The Linked Ring Buffer Library, by default, is not thread-safe. However, the user can override this behavior by passing in custom lock and unlock functions, which the library will call to ensure that all operations, except for `lr_dump`, are thread-safe. `lr_dump` is a debugging function so it is assumed that the caller is taking extra measures to protect against race conditions. 
+
 ## License
 
 The Linked Ring Buffer Library is licensed under the MIT License, as described in the LICENSE.md file. This license allows users to use, modify, and distribute the code as they see fit, with minimal restrictions. Please be sure to read and understand the terms of the license before using the code
@@ -162,7 +165,6 @@ The Linked Ring Buffer Library is licensed under the MIT License, as described i
 The Linked Ring Buffer Library is an open source project, and we welcome contributions from the community! There are several areas where you can make a meaningful contribution to the library:
 
 -   **[Add Option to Overflow Filled Buffer](https://github.com/fefa4ka/linked_ring/issues/1)**: Currently, the buffer is fixed-size and cannot hold more elements than its size. You can help by adding the option to allow the buffer to overflow when it is filled, discarding the oldest data in favor of the new data. This could be useful in certain scenarios where it is necessary to store more data in the buffer than it can hold. You could modify the `lr_put()` function to check if the buffer is full before adding a new element, and provide a flag or configuration option to allow users to specify whether they want to enable overflow behavior or not.
--   **[Make It Safe for Threads](https://github.com/fefa4ka/linked_ring/issues/2)**: The Linked Ring Buffer Library is currently not thread-safe, which means that it cannot be used in multithreaded environments without additional measures to protect against race conditions. You can help by adding support for thread-safety to the library, using techniques such as mutexes or atomic operations.
 -   **Convenient Definition of an Arbitrary Data Type for Elements**: Currently, the `lr_data_t` field is defined as a `void * type`, which allows for the storage of any type of data. However, this can be inconvenient for users who want to store specific types of data in the buffer. You can help by providing a more convenient way for users to define the data type for elements in the buffer.
 -   **Use Hash Tables** for `O(log n)` Buffer Reads: Currently, the `lr_exists()` function has `O(n)` time complexity, meaning that it takes longer to execute as the number of elements in the buffer increases. You can help by implementing a hash table-based solution that allows for `O(log n)` time complexity for this function.
 -   **Measure and Compare Performance**: The Linked Ring Buffer Library is designed to be efficient and performant, but it is always important to verify and validate these claims. You can help by implementing performance tests and benchmarks to measure and compare the performance of the Linked Ring Buffer Library with other data structures.

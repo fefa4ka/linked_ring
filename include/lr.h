@@ -47,6 +47,28 @@ struct lr_cell {
                            // together in a circular fashion.
 };
 
+/* Provides a mechanism for a thread to exclusively access the linked ring. 
+*/
+struct lr_mutex_attr 
+{ 
+    /* Shared state for lock and unlock functions. */
+    void *state; 
+
+    /* Blocks until the mutex is acquired.
+     * If a thread attempts to acquire a mutex that it has already locked, an error shall be returned. 
+     * Is a no op if NULL. 
+     */    
+    enum lr_result (*lock)(void *state, lr_owner_t owner); 
+    
+    /* Release the mutex. 
+     * Returns LR_OK on success and an error code otherwise.
+     * If a thread attempts to release a mutex that it has not acquired or a mutex which is unlocked, an error shall be returned.
+     * Is a no op if NULL. 
+    */
+    enum lr_result (*unlock)(void *state, lr_owner_t owner); 
+
+};
+
 struct linked_ring {
     struct lr_cell *cells; // Allocated array of cellsin the buffer
     unsigned int    size;  // Maximum number of elements that can be stored
@@ -55,6 +77,10 @@ struct linked_ring {
 
     struct lr_cell *read;  // Cell that is currently being read from
     struct lr_cell *write; // Cell that is currently being written to
+
+    enum lr_result (*lock)(void *state, lr_owner_t owner); // used to make operations thread-safe
+    enum lr_result (*unlock)(void *state, lr_owner_t owner);
+    void *mutex_state;
 };
 
 uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
@@ -63,14 +89,16 @@ uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
 #define lr_count(lr)              lr_count_limited_owned(lr, 0, 0)
 #define lr_exists(lr, owner)      lr_count_limited_owned(lr, 1, owner)
 #define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
+#define lr_invalid_owner UINTPTR_MAX
 
 lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
                     struct lr_cell *cells);
-
+void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
                            lr_owner_t owner);
 
 lr_result_t lr_get(struct linked_ring *, lr_data_t *, lr_owner_t requested_owner);
 
+/* not thread-safe */
 lr_result_t lr_dump(struct linked_ring *lr);
