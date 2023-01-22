@@ -25,9 +25,13 @@
     }
 
 struct linked_ring buffer; // declare a buffer for the Linked Ring
-pthread_mutex_t mutex;
+pthread_mutex_t pthread_mutex;
+lr_owner_t bare_metal_mutex;
 
-enum lr_result lock(void *state, lr_owner_t owner) 
+/**
+ * Implementation of lock using the linux pthread library
+*/
+enum lr_result pthread_lock(void *state, lr_owner_t owner) 
 {
     pthread_mutex_t *mutex = (pthread_mutex_t *) state;
     if (pthread_mutex_lock(mutex) == 0)
@@ -37,7 +41,10 @@ enum lr_result lock(void *state, lr_owner_t owner)
     return LR_ERROR_UNKNOWN;
 }
 
-lr_result_t unlock(void *state)
+/**
+ * Implementation of unlock using the linux pthread library
+*/
+lr_result_t pthread_unlock(void *state)
 {
     pthread_mutex_t *mutex = (pthread_mutex_t *) state;
     if (pthread_mutex_unlock(mutex) == 0)
@@ -45,6 +52,47 @@ lr_result_t unlock(void *state)
         return LR_OK;
     }
     return LR_ERROR_UNKNOWN;
+}
+
+/**
+ * Implementation of lock using atomics
+*/
+enum lr_result bare_metal_lock(void *state, lr_owner_t owner) 
+{
+    lr_owner_t *mutex = (lr_owner_t*) state;
+    lr_owner_t prev_owner;
+    __atomic_load(mutex, &prev_owner, __ATOMIC_SEQ_CST);
+    if (prev_owner == owner)
+    {
+        // cannot acquire a mutex that has already been acquired
+        return LR_ERROR_UNKNOWN;
+    }
+    lr_owner_t expected = lr_invalid_owner;
+    // Busy-wait until the mutex is not locked
+    while (!__atomic_compare_exchange_n(mutex, &expected, owner, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {}
+}
+
+/**
+ * Implementation of unlock using atomics
+*/
+lr_result_t bare_metal_unlock(void *state, lr_owner_t owner)
+{
+    lr_owner_t *mutex = (lr_owner_t *) state;
+    lr_owner_t prev_owner;
+    __atomic_load(mutex, &prev_owner, __ATOMIC_SEQ_CST);
+    if (prev_owner == lr_invalid_owner)
+    {
+        // cannot release a mutex which has not been acquired
+        return LR_ERROR_UNKNOWN;
+    }
+    else if (prev_owner != owner)
+    {
+        // cannot release a mutex which has not been acquired
+        return LR_ERROR_UNKNOWN;
+    }
+    lr_owner_t desired = lr_invalid_owner;
+    __atomic_store(mutex, &desired, __ATOMIC_SEQ_CST);
+    return LR_OK;
 }
 
 // function to initialize the linked ring buffer
@@ -59,13 +107,6 @@ lr_result_t init_buffer(int buffer_size)
         log_error("Failed to initialize buffer");
         return LR_ERROR_UNKNOWN;
     }
-
-
-    struct lr_mutex_attr attr;
-    attr.lock = lock;
-    attr.unlock = unlock;    
-    attr.state = (void *) &mutex;
-    lr_set_mutex(&buffer, &attr);
 
     return LR_OK;
 }
@@ -109,10 +150,23 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
     test_assert(init_buffer(buffer_size) == LR_OK, "Failed to initialize buffer");
     pthread_t threads[num_threads];
     unsigned int owners[num_threads];
+
+
+    // test using pthread lock and unlock
+    pthread_mutexattr_t pthread_attr;
+    pthread_mutexattr_init(&pthread_attr);
+    pthread_mutexattr_settype(&pthread_attr, PTHREAD_MUTEX_ERRORCHECK);
+    pthread_mutex_init(&pthread_mutex, &pthread_attr);
+    struct lr_mutex_attr attr;
+    attr.lock = pthread_lock;
+    attr.unlock = pthread_unlock;    
+    attr.state = (void *) &pthread_mutex;
+    lr_set_mutex(&buffer, &attr);
+
     for (unsigned int i = 0; i < num_threads; i++)
     {
         owners[i] = i;
-        int ret = pthread_create(&threads[i], NULL, func, (void *) &i);
+        int ret = pthread_create(&threads[i], NULL, func, (void *) &owners[i]);
         test_assert(ret == 0, "Failed to create thread");
     }
 
@@ -124,15 +178,34 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
         enum lr_result ret_as_result = (enum lr_result) ret;
         result = (ret_as_result == LR_OK) ?  result : ret_as_result;
     }
+
+    // test using atomics-based lock and unlock
+    bare_metal_mutex = lr_invalid_owner;
+    attr.lock = bare_metal_lock;
+    attr.unlock = bare_metal_unlock;    
+    attr.state = (void *) &bare_metal_mutex;
+    lr_set_mutex(&buffer, &attr);
+    
+
+    for (unsigned int i = 0; i < num_threads; i++)
+    {
+        int ret = pthread_create(&threads[i], NULL, func, (void *) &owners[i]);
+        test_assert(ret == 0, "Failed to create thread");
+    }
+
+    for (unsigned int i = 0; i < num_threads; i++)
+    {
+        void *ret;
+        pthread_join(threads[i], &ret);
+        enum lr_result ret_as_result = (enum lr_result) ret;
+        result = (ret_as_result == LR_OK) ?  result : ret_as_result;
+    }
+
     return result;
 }
 
 int main(int argc, char **argv)
 {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&mutex, &attr);
     // run the test function
     enum lr_result result = test_multiple_threads(2, put_get_data);
     if (result == LR_OK) {

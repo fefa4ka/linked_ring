@@ -48,9 +48,6 @@ struct lr_cell {
 };
 
 /* Provides a mechanism for a thread to exclusively access the linked ring. 
- * The mutex should be recursive. 
- * This means that the calling thread may call lock() multiple times before calling unlock(). 
- * The mutex should be available to other threads only after the the thread that owns the mutex calls unlock() as many times as it called lock(). 
 */
 struct lr_mutex_attr 
 { 
@@ -58,18 +55,17 @@ struct lr_mutex_attr
     void *state; 
 
     /* Blocks until the mutex is acquired.
-     * Returns LR_OK on success and an error code otherwise. 
+     * If a thread attempts to acquire a mutex that it has already locked, an error shall be returned. 
      * Is a no op if NULL. 
-     * owner is 0 if not known.
      */    
     enum lr_result (*lock)(void *state, lr_owner_t owner); 
     
     /* Release the mutex. 
-     * Since the mutex is recursive, the mutex should only be available to other threads once unlock() has been called as many times as lock().
      * Returns LR_OK on success and an error code otherwise.
+     * If a thread attempts to release a mutex that it has not acquired or a mutex which is unlocked, an error shall be returned.
      * Is a no op if NULL. 
     */
-    enum lr_result (*unlock)(void *state); 
+    enum lr_result (*unlock)(void *state, lr_owner_t owner); 
 
 };
 
@@ -83,7 +79,7 @@ struct linked_ring {
     struct lr_cell *write; // Cell that is currently being written to
 
     enum lr_result (*lock)(void *state, lr_owner_t owner); // used to make operations thread-safe
-    enum lr_result (*unlock)(void *state);
+    enum lr_result (*unlock)(void *state, lr_owner_t owner);
     void *mutex_state;
 };
 
@@ -93,6 +89,7 @@ uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
 #define lr_count(lr)              lr_count_limited_owned(lr, 0, 0)
 #define lr_exists(lr, owner)      lr_count_limited_owned(lr, 1, owner)
 #define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
+#define lr_invalid_owner UINTPTR_MAX
 
 lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
                     struct lr_cell *cells);
@@ -103,4 +100,5 @@ lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
 
 lr_result_t lr_get(struct linked_ring *, lr_data_t *, lr_owner_t requested_owner);
 
+/* not thread-safe */
 lr_result_t lr_dump(struct linked_ring *lr);

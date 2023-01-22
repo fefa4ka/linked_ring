@@ -12,19 +12,16 @@
    } \
 } while (0)
 
-/* additional overload if owner is unknown */
-#define maybe_lock_no_owner(lr) maybe_lock(lr, 0)
-
 /* unlock the mutex if unlock function provided and then return ret  */
-#define maybe_unlock_and_return(lr, ret) do { \
+#define maybe_unlock_and_return(lr, owner, ret) do { \
   if (lr->unlock != NULL) { \
-    return lr->unlock(lr->mutex_state); \
+    return lr->unlock(lr->mutex_state, owner); \
    } \
    return ret; \
 } while (0)
 
 /* additional overload for returning success */
-#define maybe_unlock_and_succeed(lr) maybe_unlock_and_return(lr, LR_OK)
+#define maybe_unlock_and_succeed(lr, owner) maybe_unlock_and_return(lr, owner, LR_OK)
 
 uint16_t lr_count_limited_owned(struct linked_ring *lr, uint16_t limit,
                                 lr_owner_t owner)
@@ -37,19 +34,19 @@ uint16_t lr_count_limited_owned(struct linked_ring *lr, uint16_t limit,
     /* Return 0 if the buffer is empty */
     if (lr->read == 0)
     {
-        maybe_unlock_and_succeed(lr);
+        maybe_unlock_and_succeed(lr, owner);
     }
 
     /* Return 0 if the owner is not present in the buffer */
     if (owner && (lr->owners & owner) != owner)
     {
-        maybe_unlock_and_succeed(lr);
+        maybe_unlock_and_succeed(lr, owner);
     }
 
     /* Full buffer */
     if (!owner && lr->write == 0)
     {
-        maybe_unlock_and_return(lr, lr->size);
+        maybe_unlock_and_return(lr, owner, lr->size);
     }
 
     /* Iterate through the buffer and count the elements owned by the specified
@@ -63,7 +60,7 @@ uint16_t lr_count_limited_owned(struct linked_ring *lr, uint16_t limit,
             break;
     } while (counter != needle || (limit && limit == length));
 
-    maybe_unlock_and_return(lr, length);
+    maybe_unlock_and_return(lr, owner, length);
 }
 
 /* This function initializes a new linked ring buffer.
@@ -117,7 +114,7 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
     /* Check if the buffer is full */
     if (!lr->write && lr->read)
     {
-        maybe_unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+        maybe_unlock_and_return(lr, owner, LR_ERROR_BUFFER_FULL);
     }
         
 
@@ -151,7 +148,7 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
     if (!lr->read)
         lr->read = cell;
 
-    maybe_unlock_and_succeed(lr);
+    maybe_unlock_and_succeed(lr, owner);
 }
 
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
@@ -173,9 +170,9 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     struct lr_cell *freed_cell    = 0;
     struct lr_cell *needle        = lr->write ? lr->write : lr->read;
 
-    if (lr_count_owned(lr, owner) == 0)
+    if (owner && (lr->owners & owner) != owner)
     {
-        maybe_unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+        maybe_unlock_and_return(lr, owner, LR_ERROR_BUFFER_EMPTY);
     }
     
     /* Flush owners, and set again during buffer reading */
@@ -187,8 +184,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         if (!owner || readable_cell->owner == owner) {
             *data = readable_cell->data;
             /* For skipping next match set impossible owner */
-            // TODO: max lr_owner_t
-            owner = 0xFFFF;
+            owner = lr_invalid_owner;
 
             /* Reassembly linking ring */
             if (previous_cell) {
@@ -196,7 +192,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
                 if (readable_cell->next == needle) {
                     readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write           = readable_cell;
-                    maybe_unlock_and_succeed(lr);
+                    maybe_unlock_and_succeed(lr, owner);
                 } else {
                     previous_cell->next = readable_cell->next;
                 }
@@ -206,7 +202,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
                     lr->read  = 0;
                     readable_cell->next = lr->write ? lr->write : lr->read;
                     lr->write = readable_cell;
-                    maybe_unlock_and_succeed(lr);
+                    maybe_unlock_and_succeed(lr, owner);
                 } else {
                     /* Once case when read pointer changing
                      * If readed first cell */
@@ -231,8 +227,8 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         readable_cell = next_cell;
     } while (readable_cell != needle && readable_cell);
 
-    if (owner != 0xFFFF) {
-        maybe_unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    if (owner != lr_invalid_owner) {
+        maybe_unlock_and_return(lr, owner, LR_ERROR_BUFFER_EMPTY);
     } else {
         /* Last iteration. Link freed cell as next */
         previous_cell->next = freed_cell;
@@ -241,16 +237,15 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         lr->write = freed_cell;
     }
 
-    maybe_unlock_and_succeed(lr);
+    maybe_unlock_and_succeed(lr, owner);
 }
 
 lr_result_t lr_dump(struct linked_ring *lr)
 {
-    maybe_lock_no_owner(lr);
     struct lr_cell *needle = lr->write ? lr->write : lr->read;
     if (lr_count(lr) == 0)
     {
-        maybe_unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+        return LR_ERROR_BUFFER_EMPTY;
     }
        
     printf("\nLinked ring buffer dump\n");
@@ -274,6 +269,4 @@ lr_result_t lr_dump(struct linked_ring *lr)
     } while (readable_cell && readable_cell != needle);
 
     printf("%x\n", lr->write);
-
-    maybe_unlock_and_succeed(lr);
 }
