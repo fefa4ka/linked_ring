@@ -66,7 +66,7 @@ enum lr_result bare_metal_lock(void *state, lr_owner_t owner)
         // cannot acquire a mutex that has already been acquired
         return LR_ERROR_LOCK;
     }
-    lr_owner_t expected = lr_invalid_owner;
+    lr_owner_t expected = UINTPTR_MAX;
     // Busy-wait until the mutex is not locked
     while (!__atomic_compare_exchange_n(mutex, &expected, owner, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {}
 
@@ -81,7 +81,7 @@ lr_result_t bare_metal_unlock(void *state, lr_owner_t owner)
     lr_owner_t *mutex = (lr_owner_t *) state;
     lr_owner_t prev_owner;
     __atomic_load(mutex, &prev_owner, __ATOMIC_SEQ_CST);
-    if (prev_owner == lr_invalid_owner)
+    if (prev_owner == UINTPTR_MAX)
     {
         // cannot release a mutex which has not been acquired
         return LR_OK;
@@ -91,7 +91,7 @@ lr_result_t bare_metal_unlock(void *state, lr_owner_t owner)
         // cannot release a mutex which has not been acquired
         return LR_OK; 
     }
-    lr_owner_t desired = lr_invalid_owner;
+    lr_owner_t desired = UINTPTR_MAX;
     __atomic_store(mutex, &desired, __ATOMIC_SEQ_CST);
 
     return LR_OK;
@@ -180,7 +180,7 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
 
 
     // test using atomics-based lock and unlock
-    bare_metal_mutex = lr_invalid_owner;
+    bare_metal_mutex = UINTPTR_MAX;
     attr.lock = bare_metal_lock;
     attr.unlock = bare_metal_unlock;
     attr.state = (void *) &bare_metal_mutex;

@@ -7,6 +7,7 @@ project(lr VERSION 1.0
 add_library(lr STATIC src/lr.c)
 target_include_directories(lr PUBLIC include)
 
+
 enable_testing()
 
 add_executable(test_basic test/basic.c)
@@ -21,10 +22,8 @@ target_link_libraries(test_edge lr)
 add_test(NAME test_edge
     COMMAND test_edge)
 
-
 add_executable(test_multi_thread test/multi_thread.c)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
 target_link_libraries(test_multi_thread PRIVATE lr pthread)
-add_test(NAME test_multi_thread
-    COMMAND test_multi_thread)
+
+

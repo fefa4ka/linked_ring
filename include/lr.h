@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdio.h>
+
 
 /* `lr_data_t` is a typedef for the `uintptr_t` type, which is an unsigned
  * integer type that is large enough to hold a pointer value. It is used to
@@ -29,6 +31,7 @@
  * the buffer, depending on the specific needs of the application. */
 #define lr_owner(ptr) (uintptr_t) ptr
 
+
 typedef enum lr_result {
     LR_OK = 0,
     LR_ERROR_UNKNOWN,
@@ -40,14 +43,53 @@ typedef enum lr_result {
     LR_ERROR_BUFFER_BUSY
 } lr_result_t;
 
+
 /* Representation of an element in the Linked Ring buffer */
 struct lr_cell {
     lr_data_t       data;  // The data for the element.
-    lr_owner_t      owner; // The owner or user associated with the element.
     struct lr_cell *next;  // A pointer to the next element in the Linked Ring
                            // buffer. It allows the elements to be linked
                            // together in a circular fashion.
 };
+
+struct linked_ring {
+    struct lr_cell *cells; // Allocated array of cellsin the buffer
+    unsigned int    size;  // Maximum number of elements that can be stored
+                           // Buffer size = size - N_owners
+
+    struct lr_cell *write; // Cell that is currently being written to
+    struct lr_cell *owners; // Cell from which data about owners in buffer stored
+                            // N_owners = cells + size - owners
+
+    enum lr_result (*lock)(void *state); // used to make operations thread-safe
+    enum lr_result (*unlock)(void *state);
+
+    void *mutex_state;
+};
+
+
+size_t lr_count_limited_owned(struct linked_ring *, size_t limit,
+                                lr_owner_t owner);
+
+size_t lr_count(struct linked_ring *lr);
+
+#define lr_available(lr) ((lr)->size - lr_count(lr) - lr_owners_count(lr))
+#define lr_size(lr) (lr->cells - lr->owners)
+#define lr_owners_count(lr) ((lr)->owners == NULL ? 0 : (lr)->cells + (lr)->size - (lr)->owners)
+#define lr_exists(lr, owner)      lr_count_limited_owned(lr, 1, owner)
+#define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
+
+lr_result_t lr_init(struct linked_ring *lr, size_t size,
+                    struct lr_cell *cells);
+void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
+
+lr_result_t lr_get(struct linked_ring *, lr_data_t *, lr_owner_t requested_owner);
+lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
+lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
+                           lr_owner_t owner);
+
+lr_result_t lr_get(struct linked_ring *, lr_data_t *, lr_owner_t requested_owner);
+
 
 /* Provides a mechanism for a thread to exclusively access the linked ring. 
 */
@@ -71,36 +113,6 @@ struct lr_mutex_attr
 
 };
 
-struct linked_ring {
-    struct lr_cell *cells; // Allocated array of cellsin the buffer
-    unsigned int    size;  // Maximum number of elements that can be stored
-
-    lr_owner_t owners; // Bitfield of owners currently present
-
-    struct lr_cell *read;  // Cell that is currently being read from
-    struct lr_cell *write; // Cell that is currently being written to
-
-    enum lr_result (*lock)(void *state, lr_owner_t owner); // used to make operations thread-safe
-    enum lr_result (*unlock)(void *state, lr_owner_t owner);
-    void *mutex_state;
-};
-
-uint16_t lr_count_limited_owned(struct linked_ring *, uint16_t limit,
-                                lr_owner_t owner);
-
-#define lr_count(lr)              lr_count_limited_owned(lr, 0, 0)
-#define lr_exists(lr, owner)      lr_count_limited_owned(lr, 1, owner)
-#define lr_count_owned(lr, owner) lr_count_limited_owned(lr, 0, owner)
-#define lr_invalid_owner UINTPTR_MAX
-
-lr_result_t lr_init(struct linked_ring *lr, unsigned int size,
-                    struct lr_cell *cells);
-void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
-lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
-lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
-                           lr_owner_t owner);
-
-lr_result_t lr_get(struct linked_ring *, lr_data_t *, lr_owner_t requested_owner);
 
 /* not thread-safe */
 lr_result_t lr_dump(struct linked_ring *lr);

@@ -29,7 +29,7 @@ int main()
 {    
     // allocate memory for the cells in the Linked Ring buffer
     lr_result_t     result;
-    unsigned int    size  = 10;
+    unsigned int    size  = 8;
     struct lr_cell *cells = malloc(size * sizeof(struct lr_cell));
 
     // Test lr_init() with size 0
@@ -41,6 +41,7 @@ int main()
     test_assert(result == LR_OK, "Buffer with size %d should be initialized",
                 size);
 
+    lr_dump(&buffer);
 
     // Test lr_put(): Test that the lr_put() function correctly adds elements to
     // the linked ring buffer.
@@ -55,7 +56,7 @@ int main()
     // an element with a specific owner exists in the linked ring buffer.
     exists = lr_exists(&buffer, owner);
     test_assert(exists == false,
-                "Element with owner %d should not exist in the buffer", owner);
+                "Element with owner %lu should not exist in the buffer", owner);
 
     // Test lr_get(): Test that lr_get() returns an error when the buffer is
     // empty.
@@ -63,19 +64,34 @@ int main()
     test_assert(result == LR_ERROR_BUFFER_EMPTY,
                 "lr_get() should return an error when the buffer is empty");
 
+    result = lr_put(&buffer, data, owner);
+    test_assert(result == LR_OK,
+                "lr_put() should add %lu data for owner %lu", data, owner);
+
+    // Test lr_get(): Test that lr_get() returns an error when the buffer is
+    // empty.
+    result = lr_get(&buffer, &obtain_data, owner);
+    test_assert(result == LR_OK && obtain_data == data,
+                "lr_get() should return data");
+
+    lr_dump(&buffer);
+                
     // Fill the buffer completely with elements
-    for (unsigned int i = 1; i <= size; ++i) {
-        result = lr_put(&buffer, i * 2, i);
+    for (unsigned int i = 1; i <= size - 2; ++i) {
+        unsigned int owner_id = i % 2;
+        result = lr_put(&buffer, i * 2, owner_id);
         test_assert(result == LR_OK,
                     "Data %d with owner %d should be added to the buffer", i * 2,
-                    i);
+                    owner_id);
     }
 
+    lr_dump(&buffer);
+    
     // Test lr_count(): Test that the lr_count() function correctly returns the
     // number of elements in the linked ring buffer.
     count = lr_count(&buffer);
-    test_assert(count == size, "Buffer should be full, count should be %d but %d",
-                size, count);
+    test_assert(count == (size - 2), "Buffer should be full, count should be %d but %d",
+                size - 2, count);
 
 
     // Test lr_put(): Test that the lr_put() function returns an error when the
@@ -86,22 +102,34 @@ int main()
 
     // Test lr_get(): Test that the lr_get() function correctly removes elements
     // from the linked ring buffer.
-    result = lr_get(&buffer, &obtain_data, 2);
+    result = lr_get(&buffer, &obtain_data, 0);
     test_assert(result == LR_OK && 4 == obtain_data,
-                "Data %d with owner %d should be removed from the buffer, but data is %d", data,
-                owner, obtain_data);
+                "Data %d with owner %d should be removed from the buffer, but data is %d", 4,
+                0, obtain_data);
 
 
     // Test lr_count(): Test that the lr_count() function correctly returns the
     // number of elements in the linked ring buffer.
     count = lr_count(&buffer);
-    test_assert(count == 9, "Buffer count should be contain 9 elements");
+    test_assert(count == 5, "Buffer count should be contain 5 elements");
 
+    
+    lr_dump(&buffer);
     // Test lr_put(): Test that the lr_put() function returns an error when the
     // buffer is full.
     result = lr_put(&buffer, data, owner);
+    test_assert(result != LR_OK,
+                "lr_put() should not added when single element available for new owner");
+
+    result = lr_get(&buffer, &obtain_data, 0);
+    test_assert(result == LR_OK && 8 == obtain_data,
+                "Data %d with owner %d should be removed from the buffer, but data is %d", 8,
+                0, obtain_data);
+
+    lr_dump(&buffer);
+    result = lr_put(&buffer, data, owner);
     test_assert(result == LR_OK,
-                "lr_put() should added when single element available");
+                "lr_put() should not added when single element available for new owner");
 
     // Test lr_put(): Test that the lr_put() function returns an error when the
     // buffer is full.
@@ -112,7 +140,7 @@ int main()
 
     // Test lr_exists(): Test that the lr_exists() function correctly checks if
     // an element with a specific owner exists in the linked ring buffer.
-    exists = lr_exists(&buffer, owner);
+    exists = lr_exists(&buffer, 1);
     test_assert(exists, "Element with owner %d should exist in the buffer",
                 owner);
 
