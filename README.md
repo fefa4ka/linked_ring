@@ -19,33 +19,36 @@
 
 ## Introduction
 
-This is a C library for Linked Ring data structures, which provide a mechanism for using _a single allocated buffer for multiple producers_. It's just **in place replacement for ring buffer**, but without taking up all that extra space for multiply buffers used by different producers-consumers.
+Linked Ring is a C library that provides a data structure called Linked Ring Buffer, designed for scenarios where multiple producers can use a single allocated buffer. It offers an efficient and memory-saving alternative to traditional circular buffers by eliminating the need for separate buffers for each producer.
 
-Linked ring is a type of fixed-size buffer with operations are performed in First In First Out (FIFO) order.
+### Features
+* Efficient utilization of memory by sharing a single buffer among multiple producers.
+* Support for multiple producers and consumers.
+* Thread-safe operations using a user-defined mutex.
+* Flexibility in the size of the buffer and number of owners (producers).
+* Easy integration into existing C projects.
 
-The library is thread-safe and provides functions for initializing, adding, and removing elements from the buffer.
-
-### Use Cases
-The Linked Ring data structure could be used in _case of statically allocating a single buffer for multiple producers_, tasks in an embedded system.
-
-_It is not_ designed to replace `malloc` or pool allocators, but for situations where there is a data stream with unknown size and multiple agents operating. It allows _Linked Ring replacement in place of the ring buffer_ for usage single 256-byte "ring buffer" instead of `N * 256`.
+It's just **in place replacement for ring buffer**, but without taking up all that extra space for multiply buffers used by different producers-consumers.
 
 ### Library Description
 
-Struct called `struct linked_ring` represent a linked ring buffer. This struct contains pointers to the cells that make up the buffer, as well as information about the `size` of the buffer, the current `read` and `write` positions, and the `owners` of the elements in the buffer.
+Struct called `struct linked_ring` represent a linked ring buffer. This struct contains pointers to the cells that make up the buffer, as well as information about the `size` of the buffer, the current `write` positions, and the `owners` of the elements in the buffer.
 
-A struct called `struct lr_cell` represent an element, which consists of a `data` field and an `owner` field, as well as a pointer to the `next` element in the buffer.
+A struct called `struct lr_cell` represent an element, which consists of a `data` field and a pointer to the `next` element in the buffer.
 
 The size of each element in the buffer is determined by the type of data stored in the `lr_data_t` and `lr_owner_t` fields. If a 64-bit system is used, the element will consume `8 bytes` of memory, or `4 bytes` in case of 32-bit system.
 
 The library provides a number of functions for initializing and manipulating linked ring buffers, such as:
--   `lr_init()`, which initializes a new linked ring buffer
--   `lr_put()`, which adds an element to the end of the buffer
--   `lr_get()`, which removes an element from the front of the buffer for a specific owner
+-   `lr_init()`, initializes a new linked ring buffer
+-   `lr_put()`, adds an element to the end of the buffer
+-   `lr_get()`, removes an element from the front of the buffer for a specific owner
 
 It also provides utility functions such as:
--   `lr_count()`, which returns the number of elements in the buffer
--   `lr_exists()`, which checks whether an element with a specific owner is present in the buffer
+-   `lr_count()`, returns the number of elements in the buffer
+-   `lr_exists()`, checks whether an element with a specific owner is present in the buffer
+-   `lr_set_mutex()`, sets the mutex for thread-safe operations.
+
+
 
 #### Diagrams
 
@@ -115,8 +118,11 @@ if (result != OK) {
 ```
 
 ## Performance
-
-The performance of the Linked Ring data structure depends on the size of the buffer, and the number of elements stored in it. The larger the buffer simultanius consumers, the more time it will take to remove elements for specific owner from it (`O(n)` because `owners` bitfield need to recompute). Adding elements to a linked ring buffer is an `O(1)` operation.
+The Linked Ring Buffer data structure provides efficient performance characteristics, making it suitable for a wide range of applications. Here's an overview of the performance characteristics and function complexities:
+* `lr_init`: The initialization function has a time complexity of *O(N)*, where `N` is the size of the buffer. It sets up the internal data structure and links the cells in a ring.
+* `lr_put`: Adding an element to the buffer using the `lr_put` function has a time complexity of *O(1)*, as it simply appends the element to the buffer. The function performs a constant number of operations regardless of the buffer size.
+* `lr_get`: Retrieving and removing an element from the buffer using the `lr_get` function also has a time complexity of *O(1)*. It retrieves the element at the read position and updates linked list chain.
+* `lr_count`: Counting the number of elements in the buffer using the `lr_count` function has a time complexity of *O(N)*, where N is the number of elements in the buffer. The function iterates through the linked list of elements and counts them.
 
 ### Memory Consumption
 
@@ -125,7 +131,7 @@ The Linked Ring data structure requires a fixed amount of memory to store the bu
 The total amount of memory consumed by the Linked Ring buffer and structure can be calculated as follows:
 
 ```
-Memory Consumption = (size * (sizeof(lr_data_t) + sizeof(lr_owner_t) + sizeof(struct lr_cell *))) + sizeof(struct linked_ring)
+Memory Consumption = ((owners_nr + cells_nr) * (sizeof(lr_data_t) + sizeof(struct lr_cell *))) + sizeof(struct linked_ring)
 ```
 
 ### Circular Buffers vs Linked Rings: A Comparison
@@ -145,13 +151,13 @@ The performance of Linked Ring Buffers also depends on the size of the buffer an
 
 Linked Ring Buffers use more memory than Circular Buffers. The amount of memory saved by using Linked Ring depends on how many producers can use the buffer.
 
-In `N` multiple consumer case we allocate just one linked ring buffer and `N` circular buffers of `BUFFER_SIZE` size.
+In `N` multiple consumer case we allocate just one linked ring buffer and `N` circular buffers of `CELLS_NR` cells.
 
-Linked ring buffer size in this case is equal to `BUFFER_SIZE * (sizeof(lr_data_t) + sizeof(lr_owner_t) + sizeof(struct lr_cell *)) + sizeof(struct linked_ring)`
+Linked ring buffer size in this case is equal to `(OWNERS_NR + CELLS_NR) * (sizeof(lr_data_t) + sizeof(struct lr_cell *)) + sizeof(struct linked_ring)`
 
-Therefore, memory consumption of Linked Ring Buffer in multiple producer case is the same while memory consumption of Circular Buffer is equal to `N * BUFFER_SIZE * sizeof(lr_data_t) + sizeof(struct linked_ring)`
+Therefore, memory needed for allocation for Linked Ring Buffer in multiple producer case is the same while memory consumption of Circular Buffer is equal to `OWNERS_NR * CELLS_NR * sizeof(lr_data_t) + sizeof(struct linked_ring)`
 
-As we can see, Linked Ring Buffer uses less memory in multiple consumer case.
+As we can see, Linked Ring Buffer needs less memory in multiple consumer case.
 
 ## License
 
@@ -163,7 +169,6 @@ The Linked Ring Buffer Library is an open source project, and we welcome contrib
 
 -   **[Add Option to Overflow Filled Buffer](https://github.com/fefa4ka/linked_ring/issues/1)**: Currently, the buffer is fixed-size and cannot hold more elements than its size. You can help by adding the option to allow the buffer to overflow when it is filled, discarding the oldest data in favor of the new data. This could be useful in certain scenarios where it is necessary to store more data in the buffer than it can hold. You could modify the `lr_put()` function to check if the buffer is full before adding a new element, and provide a flag or configuration option to allow users to specify whether they want to enable overflow behavior or not.
 -   **Convenient Definition of an Arbitrary Data Type for Elements**: Currently, the `lr_data_t` field is defined as a `void * type`, which allows for the storage of any type of data. However, this can be inconvenient for users who want to store specific types of data in the buffer. You can help by providing a more convenient way for users to define the data type for elements in the buffer.
--   **Use Hash Tables** for `O(log n)` Buffer Reads: Currently, the `lr_exists()` function has `O(n)` time complexity, meaning that it takes longer to execute as the number of elements in the buffer increases. You can help by implementing a hash table-based solution that allows for `O(log n)` time complexity for this function.
 -   **Measure and Compare Performance**: The Linked Ring Buffer Library is designed to be efficient and performant, but it is always important to verify and validate these claims. You can help by implementing performance tests and benchmarks to measure and compare the performance of the Linked Ring Buffer Library with other data structures.
 -   **Add More Utility Functions**: The Linked Ring Buffer Library currently provides a limited number of utility functions. Adding more utility functions, such as those for iterating through the elements in the buffer or finding specific elements, could make the library more useful and flexible.
 
