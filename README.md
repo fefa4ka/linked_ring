@@ -3,7 +3,6 @@
 ## Contents
 
 1.  [Introduction](#introduction)
-    -   [Use Cases](#use-cases)
     -   [Library Description](#library-description)
 2.  [Getting Started](#getting-started)
     -   [Initializing a Linked Ring Buffer](#initializing-a-linked-ring-buffer)
@@ -20,6 +19,8 @@
 ## Introduction
 
 Linked Ring is a C library that provides a data structure called Linked Ring Buffer, designed for scenarios where multiple producers can use a single allocated buffer. It offers an efficient and memory-saving alternative to traditional circular buffers by eliminating the need for separate buffers for each producer.
+
+Read [One Size Fits All: Linked Ring instead of a Ring Buffer](https://medium.com/@fefa4ka/one-size-fits-all-linked-ring-instead-of-a-ring-buffer-d1d69a12bf73) article which delves deeper into the idea behind the Linked Ring Buffer data structure. 
 
 ### Features
 * Efficient utilization of memory by sharing a single buffer among multiple producers.
@@ -47,20 +48,6 @@ It also provides utility functions such as:
 -   `lr_count()`, returns the number of elements in the buffer
 -   `lr_exists()`, checks whether an element with a specific owner is present in the buffer
 -   `lr_set_mutex()`, sets the mutex for thread-safe operations.
-
-
-
-#### Diagrams
-
-The following diagrams show the different states of a linked ring buffer with 4 elements:
-
-| Empty                                    | `lr_put(&buffer, 0xFF, 0x1)` will add `Cell_0`                           | `lr_put(&buffer, 0xCB, 0x2)` will add `Cell_1`                           |
-| ---------------------------------------- | ----------------------------------------- | ------------------------------------------ |
-| ![Empty Buffer](docs/lr_state_empty.svg) | ![Added 1 Element](docs/lr_state_one.svg) | ![Added 2 Elements](docs/lr_state_two.svg) |
-
-| Filled Buffer                           | `lr_get(&buffer, &obtain_data, 0x1)` will retrive `Cell_0`                               | `lr_get(&buffer, &obtain_data, 0x1)` will retrive `Cell_2`                                  |
-| --------------------------------------- | ----------------------------------------------- | --------------------------------------------------- |
-| ![Empty Buffer](docs/lr_state_full.svg) | ![Added 1 Element](docs/lr_state_one_freed.svg) | ![Added 2 Elements](docs/lr_state_second_freed.svg) |
 
 ## Getting Started
 
