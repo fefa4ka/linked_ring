@@ -3,7 +3,6 @@
 ## Contents
 
 1.  [Introduction](#introduction)
-    -   [Use Cases](#use-cases)
     -   [Library Description](#library-description)
 2.  [Getting Started](#getting-started)
     -   [Initializing a Linked Ring Buffer](#initializing-a-linked-ring-buffer)
@@ -36,7 +35,7 @@ Struct called `struct linked_ring` represent a linked ring buffer. This struct c
 
 A struct called `struct lr_cell` represent an element, which consists of a `data` field and a pointer to the `next` element in the buffer.
 
-The size of each element in the buffer is determined by the type of data stored in the `lr_data_t` and `lr_owner_t` fields. If a 64-bit system is used, the element will consume `8 bytes` of memory, or `4 bytes` in case of 32-bit system.
+The size of each element in the buffer is determined by the type of data stored in the `lr_data_t` field. If a 64-bit system is used, the element will consume `8 bytes` of memory, or `4 bytes` in case of 32-bit system.
 
 The library provides a number of functions for initializing and manipulating linked ring buffers, such as:
 -   `lr_init()`, initializes a new linked ring buffer

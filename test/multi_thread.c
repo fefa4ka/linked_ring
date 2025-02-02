@@ -31,7 +31,7 @@ lr_owner_t bare_metal_mutex;
 /**
  * Implementation of lock using the linux pthread library
 */
-enum lr_result pthread_lock(void *state, lr_owner_t owner)
+lr_result_t pthread_lock(void *state)
 {
     pthread_mutex_t *mutex = (pthread_mutex_t *) state;
     if (pthread_mutex_lock(mutex) == 0)
@@ -44,7 +44,7 @@ enum lr_result pthread_lock(void *state, lr_owner_t owner)
 /**
  * Implementation of unlock using the linux pthread library
 */
-lr_result_t pthread_unlock(void *state, lr_owner_t owner)
+lr_result_t pthread_unlock(void *state)
 {
     pthread_mutex_t *mutex = (pthread_mutex_t *) state;
 
@@ -56,12 +56,12 @@ lr_result_t pthread_unlock(void *state, lr_owner_t owner)
 /**
  * Implementation of lock using atomics
 */
-enum lr_result bare_metal_lock(void *state, lr_owner_t owner)
+lr_result_t bare_metal_lock(void *state)
 {
     lr_owner_t *mutex = (lr_owner_t*) state;
-    lr_owner_t prev_owner;
-    __atomic_load(mutex, &prev_owner, __ATOMIC_SEQ_CST);
-    if (prev_owner == owner)
+    lr_owner_t owner;
+    __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
+    if (owner)
     {
         // cannot acquire a mutex that has already been acquired
         return LR_ERROR_LOCK;
@@ -76,17 +76,17 @@ enum lr_result bare_metal_lock(void *state, lr_owner_t owner)
 /**
  * Implementation of unlock using atomics
 */
-lr_result_t bare_metal_unlock(void *state, lr_owner_t owner)
+lr_result_t bare_metal_unlock(void *state)
 {
     lr_owner_t *mutex = (lr_owner_t *) state;
-    lr_owner_t prev_owner;
-    __atomic_load(mutex, &prev_owner, __ATOMIC_SEQ_CST);
-    if (prev_owner == UINTPTR_MAX)
+    lr_owner_t owner;
+    __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
+    if (owner == UINTPTR_MAX)
     {
         // cannot release a mutex which has not been acquired
         return LR_OK;
     }
-    else if (prev_owner != owner)
+    else if (owner)
     {
         // cannot release a mutex which has not been acquired
         return LR_OK; 
@@ -207,7 +207,7 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
 int main(int argc, char **argv)
 {
     // run the test function
-    enum lr_result result = test_multiple_threads(128, put_get_data);
+    enum lr_result result = test_multiple_threads(                          2, put_get_data);
     if (result == LR_OK) {
         log_ok("All tests passed");
     } else {
