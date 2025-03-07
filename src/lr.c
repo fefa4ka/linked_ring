@@ -40,6 +40,66 @@ lr_result_t lr_init(struct linked_ring *lr, size_t size, struct lr_cell *cells)
     return LR_OK;
 }
 
+void *lr_memcpy(void *restrict dest, const void *restrict src, size_t n)
+{
+    char *csrc  = (char *)src;
+    char *cdest = (char *)dest;
+
+    for (size_t i = 0; i < n; i++)
+        cdest[i] = csrc[i];
+
+    return dest;
+}
+
+/**
+ * Resize the linked ring buffer.
+ *
+ * Moves the data from the old cells array to the new cells array, and updates
+ * the pointers to the cells array.
+ *
+ * @param lr: pointer to the linked ring structure to be resized
+ * @param size: size of the buffer, in number of elements
+ * @param cells: pointer to the array of cells that will make up the buffer
+ *
+ * @return LR_OK: if the initialization was successful
+ *         LR_ERROR_NOMEMORY: if the cells parameter is NULL or size is 0
+ */
+lr_result_t lr_resize(struct linked_ring *lr, size_t size,
+                      struct lr_cell *cells)
+{
+    struct lr_cell *data_needle  = NULL;
+    struct lr_cell *owner_needle = NULL;
+    size_t          owner_nr     = 0;
+    size_t          data_nr      = 0;
+
+    if (cells == NULL || size == 0) {
+        return LR_ERROR_NOMEMORY;
+    }
+    owner_nr = lr_owners_count(lr);
+    // Copy all data from old cells to new cells, without owner cells
+    data_nr     = (lr->size - owner_nr);
+    data_needle = cells;
+    for (size_t i = 0; i < data_nr; i++) {
+        size_t data_pos
+            = (size_t)(lr->cells + lr->size - (lr->cells + i)->next);
+        data_needle->data = (lr->cells + i)->data;
+        data_needle->next = cells + data_pos;
+        data_needle++;
+    }
+
+    // Create owner cells and map them to the new data
+    owner_needle = cells + size - owner_nr;
+    for (size_t i = 0; i < owner_nr; i++) {
+        size_t data_pos
+            = (size_t)(lr->cells + lr->size - (lr->owners + i)->next);
+        owner_needle->data = (lr->owners + i)->data;
+        owner_needle->next = cells + data_pos;
+        owner_needle++;
+    }
+
+    return LR_OK;
+}
+
 
 /* Lock the mutex if lock function provided, no op otherwise */
 #define lock(lr)                                                               \
@@ -92,7 +152,7 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
         head = lr->owners->next->next;
     } else {
         /* For any other cell, the prev owner is used for head linkage */
-        prev_owner = owner_cell + 1; /* Owners stored in reverse oreder */
+        prev_owner = owner_cell + 1; /* Owners stored in reverse order */
 
         while (prev_owner->next == NULL) {
             prev_owner += 1;
@@ -103,7 +163,6 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
     return head;
 }
 
-#define lr_owner_tail(owner_cell) owner_cell->next;
 
 /**
  * Swap the provided cell with the cell at the write position in the linked ring
@@ -437,7 +496,8 @@ lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data,
 
     cell->data = data;
 
-    cell->next   = needle->next;
+    cell->next = needle->next;
+
     needle->next = cell;
 
     unlock_and_return(lr, LR_OK);
@@ -543,10 +603,10 @@ lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data,
     return LR_OK;
 }
 
+
 lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
-                           lr_owner_t owner)
+                           size_t *length, lr_owner_t owner)
 {
-    struct lr_cell *head;
     struct lr_cell *needle;
     struct lr_cell *last_cell;
     struct lr_cell *tail;
@@ -555,30 +615,31 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
 
     lock(lr);
 
+    *length    = 0;
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
-        return LR_ERROR_BUFFER_EMPTY;
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
-    last_cell = lr_last_cell(lr);
-    if (owner_cell == last_cell) {
-        prev_owner = lr->owners;
-    } else {
-        prev_owner = owner_cell + 1;
-    }
-    while (prev_owner->next == NULL) {
-        prev_owner += 1;
-    }
-    head   = prev_owner->next->next;
+    /*last_cell = lr_last_cell(lr);*/
+    /*if (owner_cell == last_cell) {*/
+    /*    prev_owner = lr->owners;*/
+    /*} else {*/
+    /*    prev_owner = owner_cell + 1;*/
+    /*}*/
+    /*while (prev_owner->next == NULL) {*/
+    /*    prev_owner += 1;*/
+    /*}*/
+    needle = lr_owner_head(lr, owner_cell);
     tail   = lr_owner_tail(owner_cell);
-    needle = head;
     do {
         *data++ = needle->data;
         needle  = needle->next;
+        *length += 1;
     } while (needle != tail->next);
     *data = '\0';
 
-    return LR_OK;
+    unlock_and_return(lr, LR_OK);
 }
 
 /**
@@ -604,7 +665,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
 
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
-        return LR_ERROR_BUFFER_EMPTY;
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
     last_cell = lr_last_cell(lr);
@@ -715,6 +776,7 @@ lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     unlock_and_return(lr, LR_OK);
 }
 
+/* TODO: pull last owner cell don't work */
 lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
                     size_t index)
 {
@@ -767,10 +829,9 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         } else {
             lr->owners += 1;
         }
-    }  else if (head == tail) {
+    } else if (head == tail) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
-
 
 
     needle       = prev_owner->next;

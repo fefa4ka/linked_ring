@@ -83,7 +83,6 @@ lr_result_t lr_file_split(struct linked_ring *buffer, size_t line_no,
         = lr_owner_find(buffer, lr_owner(line_no + 1));
 
     printf("Splitting line %lu at index %lu\n", line_no, index);
-    lr_dump(buffer);
     struct lr_cell *owner_cell;
     for (owner_cell = lr_last_cell(buffer); owner_cell >= buffer->owners;
          owner_cell--) {
@@ -227,9 +226,9 @@ lr_result_t lr_file_read(struct linked_ring *buffer, size_t line_no,
 }
 
 lr_result_t lr_file_read_line(struct linked_ring *buffer, size_t line_no,
-                              char *data)
+                              char *data, size_t *length)
 {
-    return lr_read_string(buffer, data, lr_owner(line_no));
+    return lr_read_string(buffer, data, length, lr_owner(line_no));
 }
 
 lr_result_t lr_file_write(struct linked_ring *buffer, size_t line_no,
@@ -271,53 +270,6 @@ lr_result_t lr_file_write_string(struct linked_ring *buffer, size_t line_no,
         }
         data++;
     }
-
-    return LR_OK;
-}
-lr_result_t lr_file_write_string_(struct linked_ring *buffer, size_t line_no,
-                                  size_t index, char *data)
-{
-    printf("\nline_no= %lu\n", line_no);
-
-    while (*data) {
-        if (*data == '\n') {
-            lr_file_split(buffer, line_no, index);
-            line_no++;
-            index = 0;
-        } else {
-            lr_file_write(buffer, line_no, index++, (lr_data_t)*data);
-        }
-        data++;
-    }
-    /*size_t new_lines_nr = 0;*/
-    /*size_t line_no_origin = line_no;*/
-    /*   while (*data) {*/
-    /*       bool   is_newline    = false;*/
-    /*       size_t new_line_from = 0;*/
-    /*       printf("%c", *data);*/
-    /*       if (*data == '\n') {*/
-    /*           new_lines_nr++;*/
-    /*           is_newline    = true;*/
-    /*           new_line_from = index;*/
-    /*           line_no += 1;*/
-    /*           index = 0;*/
-    /*       }*/
-    /*if(is_newline && new_lines_nr > 1){*/
-    /*	return lr_file_split(buffer, line_no, new_line_from);*/
-    /*}*/
-    /*       if (is_newline && new_line_from > 0) {*/
-    /*    printf("SPLT TO NEXT LINE: %lu\n", line_no);*/
-    /*	lr_dump(buffer);*/
-    /*           lr_file_split(buffer, line_no_origin, new_line_from);*/
-    /*       } */
-    /*       if (*data != '\n') {*/
-    /*           printf("+ #%lu.%lu  = %c\n", line_no, index, *data);*/
-    /*           lr_file_write(buffer, line_no, index, (lr_data_t)*data);*/
-    /*           index++;*/
-    /*       }*/
-    /*       data++;*/
-    /*   }*/
-
 
     return LR_OK;
 }
@@ -390,7 +342,8 @@ lr_result_t lr_file_save(struct linked_ring *buffer, char *path)
 
 
         if (line_current > 0) {
-            lr_read_string(buffer, line_buffer, lr_owner(line_current));
+            size_t length;
+            lr_read_string(buffer, line_buffer, &length, lr_owner(line_current));
             fprintf(file, "%s\n", line_buffer);
         }
     }

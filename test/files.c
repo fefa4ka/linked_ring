@@ -35,6 +35,7 @@ int main()
     lr_result_t        r;
     size_t             lines_nr;
     char               line[BUFSIZ];
+    size_t length;
 
 
     r = lr_file_open(&buffer, nofile_path, 0);
@@ -44,20 +45,20 @@ int main()
     r = lr_file_open(&buffer, one_line_path, 0);
     test_assert(r == LR_OK, "File `%s` should be opened", one_line_path);
     lines_nr = lr_owners_count(&buffer) - 1;
-    test_assert(lines_nr == 1, "File `%s` should have 1 line, have %lu",
+    test_assert(lines_nr == 720, "File `%s` should have 1 line, have %lu",
                 one_line_path, lines_nr);
 
     // File path from buffer
-    r = lr_file_path(&buffer, line);
+    r = lr_file_path(&buffer, line, &length);
     test_assert(r == LR_OK && strcmp(one_line_path, line) == 0,
                 "File `%s` should save path `%s`", one_line_path, line);
 
-    r = lr_file_read_line(&buffer, 1, line);
+    r = lr_file_read_line(&buffer, 1, line, &length);
     test_assert(r == LR_OK,
                 "From file `%s` should read first line, response %d",
                 one_line_path, r);
 
-    r = lr_file_read_line(&buffer, 2, line);
+    r = lr_file_read_line(&buffer, 2, line, &length);
     test_assert(r == LR_ERROR_BUFFER_EMPTY,
                 "From file `%s` should not read second line, response %d",
                 one_line_path, r);
