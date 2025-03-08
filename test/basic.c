@@ -31,6 +31,8 @@ lr_result_t test_buffer_boundaries();
 lr_result_t test_string_operations();
 lr_result_t test_insert_operations();
 lr_result_t test_edge_cases();
+lr_result_t test_buffer_recovery();
+lr_result_t test_owner_interactions();
 lr_result_t run_all_tests();
 
 /* Global buffer for testing */
@@ -81,6 +83,14 @@ lr_result_t run_all_tests()
         return result;
 
     result = test_edge_cases();
+    if (result != LR_OK)
+        return result;
+        
+    result = test_buffer_recovery();
+    if (result != LR_OK)
+        return result;
+        
+    result = test_owner_interactions();
     if (result != LR_OK)
         return result;
 
@@ -423,7 +433,7 @@ lr_result_t test_edge_cases()
     cells  = malloc(4 * sizeof(struct lr_cell));
     result = lr_init(&buffer, 4, cells);
     test_assert(result == LR_OK,
-                "Buffer initialization with size 3 should succeed");
+                "Buffer initialization with size 4 should succeed");
 
     /* One cell for data, one for owner */
     result = lr_put(&buffer, 42, 1);
@@ -468,6 +478,138 @@ lr_result_t test_edge_cases()
     result = lr_pull(&buffer, &data, 1, 1);
     test_assert(result == LR_OK && data == 20,
                 "Pull from middle should return 20, got %lu", data);
+
+    /* Clean up */
+    free(cells);
+
+    return LR_OK;
+}
+
+/* Test buffer recovery from full state */
+lr_result_t test_buffer_recovery()
+{
+    lr_result_t     result;
+    struct lr_cell *cells;
+    lr_data_t       data;
+    const unsigned int size = 5;
+
+    log_info("Testing buffer recovery from full state...");
+
+    /* Initialize buffer */
+    cells = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+
+    /* Fill buffer to capacity */
+    for (int i = 0; i < size - 1; i++) {
+        result = lr_put(&buffer, i * 10, 1);
+        test_assert(result == LR_OK, "Put %d should succeed", i);
+    }
+
+    /* Verify buffer is full */
+    result = lr_put(&buffer, 999, 1);
+    test_assert(result == LR_ERROR_BUFFER_FULL, 
+                "Put to full buffer should return BUFFER_FULL");
+
+    /* Get one element to make space */
+    result = lr_get(&buffer, &data, 1);
+    test_assert(result == LR_OK, "Get should succeed");
+    test_assert(data == 0, "First element should be 0, got %lu", data);
+
+    /* Now we should be able to add another element */
+    result = lr_put(&buffer, 999, 1);
+    test_assert(result == LR_OK, 
+                "Put after making space should succeed");
+
+    /* Verify the element was added correctly */
+    for (int i = 1; i < size - 1; i++) {
+        result = lr_get(&buffer, &data, 1);
+        test_assert(result == LR_OK, "Get should succeed");
+        test_assert(data == i * 10, 
+                    "Element %d should be %d, got %lu", i, i * 10, data);
+    }
+    
+    result = lr_get(&buffer, &data, 1);
+    test_assert(result == LR_OK, "Get should succeed");
+    test_assert(data == 999, "Last element should be 999, got %lu", data);
+
+    /* Clean up */
+    free(cells);
+
+    return LR_OK;
+}
+
+/* Test multiple owner interactions */
+lr_result_t test_owner_interactions()
+{
+    lr_result_t     result;
+    struct lr_cell *cells;
+    lr_data_t       data;
+    const unsigned int size = 10;
+
+    log_info("Testing multiple owner interactions...");
+
+    /* Initialize buffer */
+    cells = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+
+    /* Add data for different owners in alternating pattern */
+    for (int i = 0; i < 5; i++) {
+        result = lr_put(&buffer, i * 10, 1);
+        test_assert(result == LR_OK, "Put for owner 1 should succeed");
+        
+        result = lr_put(&buffer, i * 10 + 5, 2);
+        test_assert(result == LR_OK, "Put for owner 2 should succeed");
+    }
+
+    /* Verify counts */
+    test_assert(lr_count(&buffer) == 10, "Buffer should contain 10 elements");
+    test_assert(lr_count_owned(&buffer, 1) == 5, "Owner 1 should have 5 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+
+    /* Remove all elements from owner 1 */
+    for (int i = 0; i < 5; i++) {
+        result = lr_get(&buffer, &data, 1);
+        test_assert(result == LR_OK, "Get for owner 1 should succeed");
+        test_assert(data == i * 10, 
+                    "Element %d for owner 1 should be %d, got %lu", 
+                    i, i * 10, data);
+    }
+
+    /* Verify owner 1 is empty but owner 2 still has elements */
+    test_assert(lr_count(&buffer) == 5, "Buffer should contain 5 elements");
+    test_assert(lr_count_owned(&buffer, 1) == 0, "Owner 1 should have 0 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+
+    /* Add more elements for owner 1 */
+    for (int i = 0; i < 3; i++) {
+        result = lr_put(&buffer, i * 100, 1);
+        test_assert(result == LR_OK, "Put for owner 1 should succeed");
+    }
+
+    /* Verify counts again */
+    test_assert(lr_count(&buffer) == 8, "Buffer should contain 8 elements");
+    test_assert(lr_count_owned(&buffer, 1) == 3, "Owner 1 should have 3 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+
+    /* Verify elements for owner 1 */
+    for (int i = 0; i < 3; i++) {
+        result = lr_get(&buffer, &data, 1);
+        test_assert(result == LR_OK, "Get for owner 1 should succeed");
+        test_assert(data == i * 100, 
+                    "Element %d for owner 1 should be %d, got %lu", 
+                    i, i * 100, data);
+    }
+
+    /* Verify elements for owner 2 */
+    for (int i = 0; i < 5; i++) {
+        result = lr_get(&buffer, &data, 2);
+        test_assert(result == LR_OK, "Get for owner 2 should succeed");
+        test_assert(data == i * 10 + 5, 
+                    "Element %d for owner 2 should be %d, got %lu", 
+                    i, i * 10 + 5, data);
+    }
 
     /* Clean up */
     free(cells);
