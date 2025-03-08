@@ -380,6 +380,13 @@ lr_result_t test_insert_operations() {
     result = lr_put(&buffer, 'Z', 1);
     test_assert(result == LR_OK, "Put 'Z' should succeed");
     
+    /* Get the current data to verify later */
+    lr_data_t first_data;
+    result = lr_get(&buffer, &first_data, 1);
+    test_assert(result == LR_OK, "Get first character should succeed");
+    test_assert(first_data == 'Y', "First character should be 'Y', got '%c'", (char)first_data);
+    
+    /* Now insert X at the beginning */
     result = lr_insert(&buffer, 'X', 1, 0);
     test_assert(result == LR_OK, "Insert 'X' at beginning should succeed");
     
