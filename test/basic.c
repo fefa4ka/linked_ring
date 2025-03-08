@@ -257,8 +257,11 @@ lr_result_t test_buffer_boundaries() {
     /* Verify buffer is full */
     test_assert(lr_count(&buffer) == size - 1, 
                 "Buffer should contain %d elements", size - 1);
-    test_assert(lr_available(&buffer) == 0, 
-                "Buffer should have 0 available slots");
+    
+    /* The buffer should be full at this point - one cell for owner, the rest for data */
+    unsigned int available = lr_available(&buffer);
+    test_assert(available == 0, 
+                "Buffer should have 0 available slots, has %u", available);
     
     /* Try to add more data */
     result = lr_put(&buffer, 999, 1);
