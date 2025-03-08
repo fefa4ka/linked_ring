@@ -16,7 +16,19 @@ target_link_libraries(test_basic lr)
 add_test(NAME test_basic
     COMMAND test_basic)
 
+add_executable(test_debug_segfault test/debug_segfault.c)
+target_link_libraries(test_debug_segfault lr)
+
+add_test(NAME test_debug_segfault
+    COMMAND test_debug_segfault)
+
 # Edge cases
+add_executable(test_max_value test/max_value_test.c)
+target_link_libraries(test_max_value lr)
+
+add_test(NAME test_max_value
+    COMMAND test_max_value)
+
 add_executable(test_edge test/edge.c)
 target_link_libraries(test_edge lr)
 
