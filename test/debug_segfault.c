@@ -608,16 +608,150 @@ lr_result_t test_segfault_reproduction()
     return LR_OK;
 }
 
+/* Test function to verify circular list integrity in the segfault scenario */
+lr_result_t test_circular_list_integrity()
+{
+    lr_result_t result;
+    lr_data_t value;
+    
+    log_info("=== Testing Circular List Integrity ===");
+    
+    // Initialize buffer with size 6
+    result = init_buffer(6);
+    test_assert(result == LR_OK, "Initialize buffer with size 6");
+    
+    // Step 1: Add first element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x24a);
+    test_assert(result == LR_OK, "Add first element for SPI_IN");
+    
+    // Verify circular structure
+    struct lr_cell *head = buffer.owners->next;
+    test_assert(head != NULL, "Head pointer should not be NULL");
+    
+    struct lr_cell *needle = head;
+    while (needle->next != head) {
+        test_assert(needle->next != NULL, "Found NULL next pointer in circular list");
+        needle = needle->next;
+    }
+    log_ok("Circular structure verified after first add");
+    
+    // Step 2: Add second element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x1c6);
+    test_assert(result == LR_OK, "Add second element for SPI_IN");
+    
+    // Verify circular structure again
+    head = buffer.owners->next;
+    test_assert(head != NULL, "Head pointer should not be NULL");
+    
+    needle = head;
+    while (needle->next != head) {
+        test_assert(needle->next != NULL, "Found NULL next pointer in circular list");
+        needle = needle->next;
+    }
+    log_ok("Circular structure verified after second add");
+    
+    // Step 3: Get first element from SPI_IN
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 0x24a, "Get first element from SPI_IN");
+    
+    // Verify circular structure after get
+    if (buffer.owners != NULL) {
+        head = buffer.owners->next;
+        test_assert(head != NULL, "Head pointer should not be NULL");
+        
+        needle = head;
+        while (needle->next != head) {
+            test_assert(needle->next != NULL, "Found NULL next pointer in circular list");
+            needle = needle->next;
+        }
+        log_ok("Circular structure verified after first get");
+    } else {
+        log_ok("Buffer is empty after first get (no circular structure to verify)");
+    }
+    
+    // Step 4: Get second element from SPI_IN
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 0x1c6, "Get second element from SPI_IN");
+    
+    // Step 5: Add element for UART_IN
+    result = add_data(OWNER_UART_IN, 0x217);
+    test_assert(result == LR_OK, "Add element for UART_IN");
+    
+    // Verify circular structure
+    head = buffer.owners->next;
+    test_assert(head != NULL, "Head pointer should not be NULL");
+    
+    needle = head;
+    while (needle->next != head) {
+        test_assert(needle->next != NULL, "Found NULL next pointer in circular list");
+        needle = needle->next;
+    }
+    log_ok("Circular structure verified after adding UART_IN element");
+    
+    // Step 6: Add element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x226);
+    test_assert(result == LR_OK, "Add element for SPI_IN");
+    
+    // Verify circular structure
+    head = buffer.owners->next;
+    test_assert(head != NULL, "Head pointer should not be NULL");
+    
+    needle = head;
+    while (needle->next != head) {
+        test_assert(needle->next != NULL, "Found NULL next pointer in circular list");
+        needle = needle->next;
+    }
+    log_ok("Circular structure verified after adding SPI_IN element");
+    
+    // Step 7: Get element from SPI_IN - this is where the segfault would occur without our fix
+    log_info("About to perform the operation that would cause segfault without the fix...");
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 0x226, "Get element from SPI_IN");
+    
+    // Verify circular structure after the critical operation
+    if (buffer.owners != NULL) {
+        head = buffer.owners->next;
+        test_assert(head != NULL, "Head pointer should not be NULL after critical operation");
+        
+        needle = head;
+        size_t count = 0;
+        size_t max_iterations = buffer.size * 2; // Safety limit
+        
+        while (needle->next != head && count < max_iterations) {
+            test_assert(needle->next != NULL, "Found NULL next pointer in circular list after critical operation");
+            needle = needle->next;
+            count++;
+        }
+        
+        test_assert(count < max_iterations, "Circular list should not have infinite loop");
+        test_assert(needle->next == head, "Last element should point back to head");
+        
+        log_ok("Circular structure verified after critical operation");
+    } else {
+        log_ok("Buffer is empty after critical operation (no circular structure to verify)");
+    }
+    
+    // Clean up
+    free(buffer.cells);
+    
+    return LR_OK;
+}
+
 int main()
 {
     // Seed random number generator
     srand(time(NULL));
 
-    // Run the specific test that reproduces the segfault
+    // Run the specific test that reproduces the segfault scenario
     lr_result_t result = test_specific_segfault_scenario();
     
     if (result == LR_OK) {
-        // Optionally run the other tests if the specific test passes
+        // Run the circular list integrity test
+        result = test_circular_list_integrity();
+    }
+    
+    if (result == LR_OK) {
+        // Optionally run the other tests if the specific tests pass
         result = test_segfault_reproduction();
     }
 
