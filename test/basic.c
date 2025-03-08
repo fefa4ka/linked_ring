@@ -420,9 +420,11 @@ lr_result_t test_edge_cases() {
     result = lr_get(&buffer, &data, 1);
     test_assert(result == LR_OK, "Get should succeed");
     
+	lr_dump(&buffer);
     result = lr_put(&buffer, UINTPTR_MAX, 1);
     test_assert(result == LR_OK, "Put with maximum value should succeed");
     
+	lr_dump(&buffer);
     result = lr_get(&buffer, &data, 1);
     test_assert(result == LR_OK && data == UINTPTR_MAX, 
                 "Retrieved data should be UINTPTR_MAX");
