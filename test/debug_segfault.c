@@ -511,6 +511,76 @@ lr_result_t test_edge_cases()
     return LR_OK;
 }
 
+/* Test function to specifically reproduce the segfault scenario identified in the logs */
+lr_result_t test_specific_segfault_scenario()
+{
+    lr_result_t result;
+    lr_data_t value;
+    
+    log_info("=== Testing Specific Segfault Scenario ===");
+    
+    // Initialize buffer with size 6 (enough for our test case)
+    result = init_buffer(6);
+    test_assert(result == LR_OK, "Initialize buffer with size 6");
+    
+    validate_buffer(&buffer, "After initialization");
+    
+    // Step 1: Add first element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x24a);
+    test_assert(result == LR_OK, "Add first element for SPI_IN");
+    
+    validate_buffer(&buffer, "After adding first element");
+    
+    // Step 2: Add second element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x1c6);
+    test_assert(result == LR_OK, "Add second element for SPI_IN");
+    
+    validate_buffer(&buffer, "After adding second element");
+    
+    // Step 3: Get first element from SPI_IN (should leave one element)
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 0x24a, "Get first element from SPI_IN");
+    
+    validate_buffer(&buffer, "After getting first element");
+    log_info("Buffer has %zu elements after first get", safe_lr_count(&buffer));
+    
+    // Step 4: Get second element from SPI_IN (should empty the buffer)
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 0x1c6, "Get second element from SPI_IN");
+    
+    validate_buffer(&buffer, "After getting second element");
+    log_info("Buffer has %zu elements after second get", safe_lr_count(&buffer));
+    
+    // Step 5: Add element for UART_IN
+    result = add_data(OWNER_UART_IN, 0x217);
+    test_assert(result == LR_OK, "Add element for UART_IN");
+    
+    validate_buffer(&buffer, "After adding element for UART_IN");
+    log_info("Buffer has %zu elements after adding UART_IN", safe_lr_count(&buffer));
+    
+    // Step 6: Add element for SPI_IN
+    result = add_data(OWNER_SPI_IN, 0x226);
+    test_assert(result == LR_OK, "Add element for SPI_IN");
+    
+    validate_buffer(&buffer, "After adding element for SPI_IN");
+    log_info("Buffer has %zu elements after adding SPI_IN", safe_lr_count(&buffer));
+    
+    // Step 7: Get element from SPI_IN - this is where the segfault occurs
+    log_info("About to perform the operation that causes segfault...");
+    result = get_data(OWNER_SPI_IN, &value);
+    
+    // If we get here without segfaulting, validate the buffer
+    test_assert(result == LR_OK && value == 0x226, "Get element from SPI_IN");
+    
+    validate_buffer(&buffer, "After getting element from SPI_IN");
+    log_info("Buffer has %zu elements after final get", safe_lr_count(&buffer));
+    
+    // Clean up
+    free(buffer.cells);
+    
+    return LR_OK;
+}
+
 /* Test function to reproduce and diagnose segfault */
 lr_result_t test_segfault_reproduction()
 {
@@ -543,7 +613,13 @@ int main()
     // Seed random number generator
     srand(time(NULL));
 
-    lr_result_t result = test_segfault_reproduction();
+    // Run the specific test that reproduces the segfault
+    lr_result_t result = test_specific_segfault_scenario();
+    
+    if (result == LR_OK) {
+        // Optionally run the other tests if the specific test passes
+        result = test_segfault_reproduction();
+    }
 
     if (result == LR_OK) {
         log_info("All tests passed successfully!");
