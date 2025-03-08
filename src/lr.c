@@ -894,19 +894,19 @@ lr_result_t lr_print(struct linked_ring *lr)
         while (needle != tail) {
             // Print data in multiple formats for better understanding
             if (needle->data > 31 && needle->data < 127) {
-                printf("│ %5lu │ 0x%04lx │ '%c' (ASCII printable)  │\n", 
+                printf("│ %5lu │ 0x%04lx  │ '%c' (ASCII printable)  │\n", 
                        index, needle->data, (char)needle->data);
             } else if (needle->data <= 31) {
-                printf("│ %5lu │ 0x%04lx │ CTRL (ASCII control)   │\n", 
+                printf("│ %5lu │ 0x%04lx  │ CTRL (ASCII control)   │\n", 
                        index, needle->data);
             } else if (needle->data == 127) {
-                printf("│ %5lu │ 0x%04lx │ DEL (ASCII control)    │\n", 
+                printf("│ %5lu │ 0x%04lx  │ DEL (ASCII control)    │\n", 
                        index, needle->data);
             } else if (needle->data > 127 && needle->data <= 255) {
-                printf("│ %5lu │ 0x%04lx │ Extended ASCII         │\n", 
+                printf("│ %5lu │ 0x%04lx  │ Extended ASCII         │\n", 
                        index, needle->data);
             } else {
-                printf("│ %5lu │ 0x%04lx │ Binary data            │\n", 
+                printf("│ %5lu │ 0x%04lx  │ Binary data            │\n", 
                        index, needle->data);
             }
             
@@ -916,19 +916,19 @@ lr_result_t lr_print(struct linked_ring *lr)
         
         // Print the last element (tail)
         if (needle->data > 31 && needle->data < 127) {
-            printf("│ %5lu │ 0x%04lx │ '%c' (ASCII printable)  │\n", 
+            printf("│ %5lu │ 0x%04lx  │ '%c' (ASCII printable)  │\n", 
                    index, needle->data, (char)needle->data);
         } else if (needle->data <= 31) {
-            printf("│ %5lu │ 0x%04lx │ CTRL (ASCII control)   │\n", 
+            printf("│ %5lu │ 0x%04lx  │ CTRL (ASCII control)   │\n", 
                    index, needle->data);
         } else if (needle->data == 127) {
-            printf("│ %5lu │ 0x%04lx │ DEL (ASCII control)    │\n", 
+            printf("│ %5lu │ 0x%04lx  │ DEL (ASCII control)    │\n", 
                    index, needle->data);
         } else if (needle->data > 127 && needle->data <= 255) {
-            printf("│ %5lu │ 0x%04lx │ Extended ASCII         │\n", 
+            printf("│ %5lu │ 0x%04lx  │ Extended ASCII         │\n", 
                    index, needle->data);
         } else {
-            printf("│ %5lu │ 0x%04lx │ Binary data            │\n", 
+            printf("│ %5lu │ 0x%04lx  │ Binary data            │\n", 
                    index, needle->data);
         }
         
@@ -960,13 +960,13 @@ lr_result_t lr_dump(struct linked_ring *lr)
 
     // Print header with box drawing characters
     printf("\n┌─────────────────────────────────────────┐\n");
-    printf("│       \033[1mLinked Ring Buffer Status\033[0m        │\n");
+    printf("│       \033[1mLinked Ring Buffer Status\033[0m         │\n");
     printf("├─────────────────────────┬───────────────┤\n");
     printf("│ Memory Addresses        │ Values        │\n");
     printf("├─────────────────────────┼───────────────┤\n");
-    printf("│ Head pointer            │ %p │\n", head);
-    printf("│ Write pointer           │ %p │\n", lr->write);
-    printf("│ Cells array             │ %p │\n", lr->cells);
+    printf("│ Head pointer            │ %p   │\n", head);
+    printf("│ Write pointer           │ %p   │\n", lr->write);
+    printf("│ Cells array             │ %p   │\n", lr->cells);
     printf("├─────────────────────────┼───────────────┤\n");
     printf("│ Buffer Metrics          │ Values        │\n");
     printf("├─────────────────────────┼───────────────┤\n");
