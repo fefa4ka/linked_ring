@@ -621,17 +621,15 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
-    /*last_cell = lr_last_cell(lr);*/
-    /*if (owner_cell == last_cell) {*/
-    /*    prev_owner = lr->owners;*/
-    /*} else {*/
-    /*    prev_owner = owner_cell + 1;*/
-    /*}*/
-    /*while (prev_owner->next == NULL) {*/
-    /*    prev_owner += 1;*/
-    /*}*/
     needle = lr_owner_head(lr, owner_cell);
     tail   = lr_owner_tail(owner_cell);
+    
+    // Handle empty line case
+    if (needle == tail && tail->data == 0) {
+        *data = '\0';
+        unlock_and_return(lr, LR_OK);
+    }
+    
     do {
         *data++ = needle->data;
         needle  = needle->next;
