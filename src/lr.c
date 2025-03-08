@@ -860,38 +860,82 @@ lr_result_t lr_print(struct linked_ring *lr)
     struct lr_cell *needle;
     struct lr_cell *tail;
     struct lr_cell *owner_cell;
+    size_t owner_count = 0;
 
     lock(lr);
 
     if (lr->owners == NULL) {
-        printf("No owners found\n");
+        printf("\033[33mNo owners found in buffer\033[0m\n");
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
     for (owner_cell = lr_last_cell(lr); owner_cell >= lr->owners;
          owner_cell--) {
-        printf("Owner: %lu\n", owner_cell->data);
+        owner_count++;
+        
+        // Special handling for owner 0 (typically file path in file operations)
+        if (owner_cell->data == 0) {
+            printf("\n\033[1;36mOwner: %lu (File Path)\033[0m\n", owner_cell->data);
+        } else {
+            printf("\n\033[1;32mOwner: %lu\033[0m\n", owner_cell->data);
+        }
+        
         head = lr_owner_head(lr, owner_cell);
         tail = lr_owner_tail(owner_cell);
 
+        // Print a nice table header for the data
+        printf("┌───────┬─────────┬────────────────────────┐\n");
+        printf("│ Index │ Value   │ Representation         │\n");
+        printf("├───────┼─────────┼────────────────────────┤\n");
+        
         needle = head;
-        printf("| ");
+        size_t index = 0;
+        
         while (needle != tail) {
-            // If character is printable, print it, otherwise print as a number
+            // Print data in multiple formats for better understanding
             if (needle->data > 31 && needle->data < 127) {
-                printf("%c | ", needle->data);
+                printf("│ %5lu │ 0x%04lx │ '%c' (ASCII printable)  │\n", 
+                       index, needle->data, (char)needle->data);
+            } else if (needle->data <= 31) {
+                printf("│ %5lu │ 0x%04lx │ CTRL (ASCII control)   │\n", 
+                       index, needle->data);
+            } else if (needle->data == 127) {
+                printf("│ %5lu │ 0x%04lx │ DEL (ASCII control)    │\n", 
+                       index, needle->data);
+            } else if (needle->data > 127 && needle->data <= 255) {
+                printf("│ %5lu │ 0x%04lx │ Extended ASCII         │\n", 
+                       index, needle->data);
             } else {
-                printf("%d | ", needle->data);
+                printf("│ %5lu │ 0x%04lx │ Binary data            │\n", 
+                       index, needle->data);
             }
+            
             needle = needle->next;
+            index++;
         }
+        
+        // Print the last element (tail)
         if (needle->data > 31 && needle->data < 127) {
-            printf("%c |\n", needle->data);
+            printf("│ %5lu │ 0x%04lx │ '%c' (ASCII printable)  │\n", 
+                   index, needle->data, (char)needle->data);
+        } else if (needle->data <= 31) {
+            printf("│ %5lu │ 0x%04lx │ CTRL (ASCII control)   │\n", 
+                   index, needle->data);
+        } else if (needle->data == 127) {
+            printf("│ %5lu │ 0x%04lx │ DEL (ASCII control)    │\n", 
+                   index, needle->data);
+        } else if (needle->data > 127 && needle->data <= 255) {
+            printf("│ %5lu │ 0x%04lx │ Extended ASCII         │\n", 
+                   index, needle->data);
         } else {
-            printf("%d |\n", needle->data);
+            printf("│ %5lu │ 0x%04lx │ Binary data            │\n", 
+                   index, needle->data);
         }
+        
+        printf("└───────┴─────────┴────────────────────────┘\n");
     }
 
+    printf("\n\033[1mTotal owners: %lu\033[0m\n", owner_count);
     unlock_and_return(lr, LR_OK);
 }
 
@@ -900,6 +944,7 @@ lr_result_t lr_dump(struct linked_ring *lr)
 {
     struct lr_cell *needle;
     struct lr_cell *head;
+    size_t buffer_usage_percent;
 
     lock(lr);
     head = NULL;
@@ -907,21 +952,42 @@ lr_result_t lr_dump(struct linked_ring *lr)
         head = lr->owners->next->next;
     }
 
-    printf("\nLinked ring buffer dump\n");
-    printf("=======================\n");
-    printf("head    : %p\n", head);
-    printf("write   : %p\n", lr->write);
-    printf("cells   : %p\n", lr->cells);
-    printf("capacity: %d\n", lr->size);
-    printf("size    : %ld\n", lr_count(lr));
-    printf("free    : %ld\n", lr_available(lr));
-    printf("owners  : %ld\n", lr_owners_count(lr));
-    printf("\n");
+    // Calculate buffer usage percentage
+    size_t total_elements = lr_count(lr);
+    size_t total_owners = lr_owners_count(lr);
+    size_t available = lr_available(lr);
+    buffer_usage_percent = (total_elements + total_owners) * 100 / lr->size;
 
-    if (lr_count(lr) == 0) {
+    // Print header with box drawing characters
+    printf("\n┌─────────────────────────────────────────┐\n");
+    printf("│       \033[1mLinked Ring Buffer Status\033[0m        │\n");
+    printf("├─────────────────────────┬───────────────┤\n");
+    printf("│ Memory Addresses        │ Values        │\n");
+    printf("├─────────────────────────┼───────────────┤\n");
+    printf("│ Head pointer            │ %p │\n", head);
+    printf("│ Write pointer           │ %p │\n", lr->write);
+    printf("│ Cells array             │ %p │\n", lr->cells);
+    printf("├─────────────────────────┼───────────────┤\n");
+    printf("│ Buffer Metrics          │ Values        │\n");
+    printf("├─────────────────────────┼───────────────┤\n");
+    printf("│ Total capacity          │ %d cells    │\n", lr->size);
+    printf("│ Elements in buffer      │ %ld cells    │\n", total_elements);
+    printf("│ Owner count             │ %ld owners   │\n", total_owners);
+    printf("│ Available space         │ %ld cells    │\n", available);
+    printf("│ Buffer usage            │ %ld%% full     │\n", buffer_usage_percent);
+    printf("└─────────────────────────┴───────────────┘\n");
+
+    // If buffer is empty, return early
+    if (total_elements == 0) {
+        printf("\n\033[33mBuffer is empty - no data to display\033[0m\n\n");
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
+    // Print buffer contents with improved formatting
+    printf("\n┌─────────────────────────────────────────┐\n");
+    printf("│         \033[1mBuffer Contents by Owner\033[0m        │\n");
+    printf("└─────────────────────────────────────────┘\n");
+    
     lr_print(lr);
 
     unlock_and_return(lr, LR_OK);
