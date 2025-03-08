@@ -552,7 +552,7 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
         /* When inserting at the beginning, we need to update the head pointer */
         cell->next = head;
         prev_owner->next->next = cell;
-        return unlock_and_return(lr, LR_OK);
+        unlock_and_return(lr, LR_OK);
     } else {
         needle     = head;
         cell_index = 1;
