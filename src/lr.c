@@ -430,17 +430,8 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
     lock(lr);
 
     owner_cell = lr_owner_find(lr, owner);
-    if (owner_cell && lr->write == NULL) {
-        lr_data_t data;
-        lr_get(lr, &data, owner);
-    }
 
     if (lr->write == NULL) {
-        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-    }
-
-    /* Check available space before trying to get or create an owner */
-    if (lr_available(lr) == 0) {
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
 
@@ -525,11 +516,6 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
     lock(lr);
 
     owner_cell = lr_owner_find(lr, owner);
-    if (owner_cell && lr->write == NULL) {
-        lr_data_t data;
-        lr_get(lr, &data, owner);
-    }
-
     if (lr->write == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
