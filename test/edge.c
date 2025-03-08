@@ -68,7 +68,6 @@ lr_result_t add_random_data()
                     "Add element to buffer (owner: %x, data: %x, length: %d)",
                     owner, value, count);
 
-        lr_dump(&buffer);
     } else {
         printf("Buffer is full (length: %d, result: %d)\n", count, result);
     }
@@ -87,7 +86,6 @@ lr_result_t get_random_owner_data()
             count != 0,
             "Get element from buffer (value: %x, owner: %x, remain: %d)", value,
             owner, count - 1);
-        lr_dump(&buffer);
     }
 }
 
