@@ -1,6 +1,7 @@
 #include "lr.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 /**
  * Initialize a new linked ring buffer.
