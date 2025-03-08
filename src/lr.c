@@ -970,11 +970,11 @@ lr_result_t lr_dump(struct linked_ring *lr)
     printf("├─────────────────────────┼───────────────┤\n");
     printf("│ Buffer Metrics          │ Values        │\n");
     printf("├─────────────────────────┼───────────────┤\n");
-    printf("│ Total capacity          │ %d cells    │\n", lr->size);
-    printf("│ Elements in buffer      │ %ld cells    │\n", total_elements);
-    printf("│ Owner count             │ %ld owners   │\n", total_owners);
-    printf("│ Available space         │ %ld cells    │\n", available);
-    printf("│ Buffer usage            │ %ld%% full     │\n", buffer_usage_percent);
+    printf("│ Total capacity (cells)  │ %13d │\n", lr->size);
+    printf("│ Elements in buffer      │ %13ld │\n", total_elements);
+    printf("│ Owner count             │ %13ld │\n", total_owners);
+    printf("│ Available space (cells) │ %13ld │\n", available);
+    printf("│ Buffer usage            │ %ld%% full      │\n", buffer_usage_percent);
     printf("└─────────────────────────┴───────────────┘\n");
 
     // If buffer is empty, return early
