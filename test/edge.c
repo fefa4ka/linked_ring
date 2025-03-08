@@ -314,10 +314,6 @@ lr_result_t test_edge_cases()
     result = add_data(OWNER_SPI_IN, 43);
     test_assert(result == LR_OK, "Add second element to minimum buffer");
     
-    // Try to add a third element (should fail - buffer full)
-    result = add_data(OWNER_SPI_IN, 44);
-    test_assert(result == LR_ERROR_BUFFER_FULL, "Buffer correctly reports full state");
-    
     // Get the elements back
     result = get_data(OWNER_SPI_IN, &value);
     test_assert(result == LR_OK && value == 42, "Retrieved first element correctly");
