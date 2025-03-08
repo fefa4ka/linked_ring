@@ -439,6 +439,11 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
 
+    /* Check available space before trying to get or create an owner */
+    if (lr_available(lr) == 0) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+    }
+
     owner_cell = lr_owner_get(lr, owner);
 
     if (owner_cell == NULL) {

@@ -266,7 +266,7 @@ lr_result_t test_buffer_boundaries() {
     /* Try to add more data */
     result = lr_put(&buffer, 999, 1);
     test_assert(result == LR_ERROR_BUFFER_FULL, 
-                "Put to full buffer should return BUFFER_FULL");
+                "Put to full buffer should return BUFFER_FULL, got %d", result);
     
     /* Try to add data for new owner */
     result = lr_put(&buffer, 888, 2);
