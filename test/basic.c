@@ -424,10 +424,14 @@ lr_result_t test_edge_cases() {
     result = lr_put(&buffer, UINTPTR_MAX, 1);
     test_assert(result == LR_OK, "Put with maximum value should succeed");
     
-	lr_dump(&buffer);
+    /* Print detailed debug information */
+    printf("Putting UINTPTR_MAX (0x%lx) into buffer\n", UINTPTR_MAX);
+    lr_dump(&buffer);
+    
     result = lr_get(&buffer, &data, 1);
     test_assert(result == LR_OK && data == UINTPTR_MAX, 
-                "Retrieved data should be UINTPTR_MAX");
+                "Retrieved data should be UINTPTR_MAX (0x%lx), got 0x%lx", 
+                UINTPTR_MAX, data);
     
     /* Test with non-existent owner */
     result = lr_get(&buffer, &data, 999);
