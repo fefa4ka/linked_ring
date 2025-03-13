@@ -1073,9 +1073,9 @@ lr_result_t lr_dump(struct linked_ring *lr)
     printf("├─────────────────────────┬─────────────────┤\n");
     printf("│ Memory Addresses        │      Values     │\n");
     printf("├─────────────────────────┼─────────────────┤\n");
-    printf("│ Head pointer            │ %15p │\n", head);
-    printf("│ Write pointer           │ %15p │\n", lr->write);
-    printf("│ Cells array             │ %15p │\n", lr->cells);
+    printf("│ Head pointer            │ %15p │\n", (void *)head);
+    printf("│ Write pointer           │ %15p │\n", (void *)lr->write);
+    printf("│ Cells array             │ %15p │\n", (void *)lr->cells);
     printf("├─────────────────────────┼─────────────────┤\n");
     printf("│ Buffer Metrics          │      Values     │\n");
     printf("├─────────────────────────┼─────────────────┤\n");
@@ -1111,8 +1111,8 @@ void lr_debug_cells_structure(struct linked_ring *lr) {
 
     printf("\n\033[1;35m=== Original Cells Structure ===\033[0m\n");
     printf("Buffer size: %u, Owners count: %zu\n", lr->size, lr_owners_count(lr));
-    printf("Cells array address: %p\n", lr->cells);
-    printf("Write pointer: %p\n", lr->write);
+    printf("Cells array address: %p\n", (void *)lr->cells);
+    printf("Write pointer: %p\n", (void *)lr->write);
     
     printf("\n\033[1mCell array contents:\033[0m\n");
     printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
@@ -1142,10 +1142,10 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
     size_t count = 0;
 
     printf("\n\033[1;36m=== Circular Structure Debug for Owner %lu ===\033[0m\n", owner);
-    printf("Owner cell address: %p, data: %lu\n", owner_cell, owner_cell->data);
-    printf("Head address: %p\n", head);
-    printf("Tail address: %p\n", tail);
-    printf("Tail->next address: %p\n", tail->next);
+    printf("Owner cell address: %p, data: %lu\n", (void *)owner_cell, owner_cell->data);
+    printf("Head address: %p\n", (void *)head);
+    printf("Tail address: %p\n", (void *)tail);
+    printf("Tail->next address: %p\n", (void *)tail->next);
 
     printf("\n\033[1mTracing circular path:\033[0m\n");
     printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
@@ -1173,7 +1173,7 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
         printf("\033[32mCircular structure verified\033[0m\n");
     } else {
         printf("\033[31mWARNING: Circle not completed - current=%p, head=%p\033[0m\n", 
-               current, head);
+               (void *)current, (void *)head);
     }
 
     return LR_OK;
@@ -1193,7 +1193,7 @@ void lr_debug_relinked_structure(struct linked_ring *lr) {
     size_t free_count = 0;
     
     printf("\n\033[1mFree cells chain (write pointer chain):\033[0m\n");
-    printf("Write pointer: %p\n", lr->write);
+    printf("Write pointer: %p\n", (void *)lr->write);
     
     if (free_cell == NULL) {
         printf("No free cells available (buffer full)\n");
@@ -1204,14 +1204,14 @@ void lr_debug_relinked_structure(struct linked_ring *lr) {
         
         while (free_cell != NULL && free_count < lr->size) {
             printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
-                   free_count, free_cell, free_cell->data, free_cell->next);
+                   free_count, (void *)free_cell, free_cell->data, (void *)free_cell->next);
             
             if (free_cell->next == NULL) break;
             
             // Check for self-referential loop in free list
             if (free_cell->next == free_cell) {
                 printf("│ %5zu │ %15p │ %10lu │ \033[31mSELF-REFERENCE!\033[0m │\n",
-                       free_count, free_cell, free_cell->data);
+                       free_count, (void *)free_cell, free_cell->data);
                 printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
                 printf("\033[31mWARNING: Self-referential loop detected in free list\033[0m\n");
                 break;
@@ -1245,7 +1245,7 @@ void lr_debug_relinked_structure(struct linked_ring *lr) {
         for (size_t i = 0; i < owner_count; i++) {
             struct lr_cell *owner_cell = lr->owners + i;
             printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
-                   i, owner_cell, owner_cell->data, owner_cell->next);
+                   i, (void *)owner_cell, owner_cell->data, (void *)owner_cell->next);
         }
         printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
     }
