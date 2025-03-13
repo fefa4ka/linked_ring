@@ -207,8 +207,7 @@ struct lr_cell *lr_cell_swap(struct linked_ring *lr, struct lr_cell *cell)
     swap->data = cell->data;
     swap->next = cell->next;
 
-    /* Update the next pointer of the owners pointing to the provided cell to
-     * point to the swap cell */
+    /* Update any pointers that were pointing to the cell to now point to swap */
     for (struct lr_cell *owner_swap = lr->cells;
          owner_swap < (lr->cells + lr->size); owner_swap++) {
         if (owner_swap->next == cell) {
@@ -243,8 +242,7 @@ struct lr_cell *lr_cell_lookup(struct linked_ring *lr, struct lr_cell *head,
         needle = needle->next;
     }
 
-    /* If the cell is found, swap it with the cell at the write position and
-     * update the head cell */
+    /* If the cell is found, swap it with the cell at the write position */
     if (needle->next == cell) {
         swap         = lr_cell_swap(lr, cell);
         needle->next = swap;
@@ -287,15 +285,14 @@ struct lr_cell *lr_owner_allocate(struct linked_ring *lr)
     }
 
     /* If the owner cell is the same as the write position, update the write
-     * position */
+     * position and return it */
     if (owner_cell == lr->write) {
         lr->write = lr->write->next;
 
         return owner_cell;
     }
 
-    /* If the owner cell is not found in the linked ring buffer, lookup in the
-     * free pool */
+    /* Look for the owner cell in the free pool */
     head   = lr->write;
     needle = head;
     while (needle->next != head && needle->next != owner_cell) {
@@ -586,8 +583,7 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
 
     if (index == 0) {
         needle = prev_owner->next;
-        /* When inserting at the beginning, we need to update the head pointer
-         */
+        /* When inserting at the beginning */
         cell->next             = head;
         prev_owner->next->next = cell;
         unlock_and_return(lr, LR_OK);
@@ -796,8 +792,7 @@ lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     *data = tail->data;
 
     if (head == tail) {
-        /* If last cell for owner */
-        /* delete and shorten the list, put a new link to lr->owners */
+        /* If this is the last cell for this owner, remove the owner */
         for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
              owner_swap--) {
             struct lr_cell *next_owner = owner_swap - 1;
@@ -890,8 +885,7 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         if (index == 0) {
             *data = head->data;
 
-            /* If last cell for owner */
-            /* delete and shorten the list, put a new link to lr->owners */
+            /* Remove this owner since it's the last cell */
             for (struct lr_cell *owner_swap = owner_cell;
                  owner_swap > lr->owners; owner_swap--) {
                 struct lr_cell *next_owner = owner_swap - 1;
@@ -1182,11 +1176,13 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
 
     printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
 
-    /* In a single-circle design, tail->next may not point to this owner's head.
-     * It should point to the next owner's head, or back to the first owner's head
-     * if this is the last owner.
-     */
-    printf("\033[32mCircular structure follows single-circle design\033[0m\n");
+    /* Check if we've completed the circle */
+    if (current == head) {
+        printf("\033[32mCircular structure verified\033[0m\n");
+    } else {
+        printf("\033[31mWARNING: Circle not completed - current=%p, head=%p\033[0m\n", 
+               current, head);
+    }
 
     return LR_OK;
 }

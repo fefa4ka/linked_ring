@@ -44,22 +44,20 @@ struct linked_ring {
     void *mutex_state;                     // State for mutex operations
 };
 
-/* Provides a mechanism for a thread to exclusively access the linked ring.
- */
+/* Provides a mechanism for a thread to exclusively access the linked ring */
 struct lr_mutex_attr {
-    /* Shared state for lock and unlock functions. */
+    /* Shared state for lock and unlock functions */
     void *state;
 
-    /* Blocks until the mutex is acquired.
-     * If a thread attempts to acquire a mutex that it has already locked, an
-     * error shall be returned. Is a no op if NULL.
+    /* Blocks until the mutex is acquired
+     * Returns LR_OK on success, error code otherwise
+     * Is a no-op if NULL
      */
     enum lr_result (*lock)(void *state);
 
-    /* Release the mutex.
-     * Returns LR_OK on success and an error code otherwise.
-     * If a thread attempts to release a mutex that it has not acquired or a
-     * mutex which is unlocked, an error shall be returned. Is a no op if NULL.
+    /* Release the mutex
+     * Returns LR_OK on success, error code otherwise
+     * Is a no-op if NULL
      */
     enum lr_result (*unlock)(void *state);
 };
