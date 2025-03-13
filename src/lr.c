@@ -467,14 +467,19 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
                 chain                  = prev_owner->next->next;
                 cell->next             = chain;
                 prev_owner->next->next = cell;
+            
+                // Ensure the owner cell points to the new cell (tail)
+                owner_cell->next = cell;
             } else {
                 /* If no valid previous owner found, create a self-referential
                  * loop */
                 cell->next = cell;
+                owner_cell->next = cell;
             }
         } else {
             /* If first owner */
             cell->next = cell;
+            owner_cell->next = cell;
         }
     }
 

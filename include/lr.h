@@ -143,7 +143,7 @@ struct lr_cell *lr_owner_allocate(struct linked_ring *lr);
 /* Cursor */
 struct lr_cell *lr_owner_head(struct linked_ring *lr,
                               struct lr_cell     *owner_cell);
-#define lr_owner_tail(owner_cell) owner_cell->next;
+#define lr_owner_tail(owner_cell) owner_cell->next
 
 lr_result_t lr_owner_head_get(struct linked_ring *lr, lr_data_t owner,
                               struct lr_cell *cell);
