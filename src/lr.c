@@ -1142,25 +1142,25 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
     printf("Tail->next address: %p\n", tail->next);
 
     printf("\n\033[1mTracing circular path:\033[0m\n");
-    printf("┌───────┬─────────┬────────────┬────────────┐\n");
-    printf("│ Index │ Address │ Data Value │ Next Addr  │\n");
-    printf("├───────┼─────────┼────────────┼────────────┤\n");
+    printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
+    printf("│ Index │     Address     │ Data Value │    Next Addr    │\n");
+    printf("├───────┼─────────────────┼────────────┼─────────────────┤\n");
 
     do {
-        printf("│ %5zu │ %p │ %10lu │ %p │\n",
+        printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
                count, current, current->data, current->next);
         current = current->next;
         count++;
 
         /* Safety check to prevent infinite loops during debugging */
         if (count > lr->size) {
-            printf("└───────┴─────────┴────────────┴────────────┘\n");
+            printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
             printf("\033[31mWARNING: Possible infinite loop detected after %zu elements\033[0m\n", count);
             return LR_ERROR_UNKNOWN;
         }
     } while (current != head && count < lr_count_owned(lr, owner));
 
-    printf("└───────┴─────────┴────────────┴────────────┘\n");
+    printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
 
     /* In a single-circle design, tail->next may not point to this owner's head.
      * It should point to the next owner's head, or back to the first owner's head
