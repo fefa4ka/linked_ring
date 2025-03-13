@@ -419,61 +419,68 @@ void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr)
  *         LR_ERROR_BUFFER_FULL: if the buffer is full and the element could not
  * be added
  */
-lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
-{
-    struct lr_cell *tail;
-    struct lr_cell *cell;
-    struct lr_cell *chain;
-    struct lr_cell *owner_cell;
-    struct lr_cell *prev_owner;
-    struct lr_cell *last_free;
 
-    lock(lr);
+ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
+ {
+     struct lr_cell *tail;
+     struct lr_cell *cell;
+     struct lr_cell *chain;
+     struct lr_cell *owner_cell;
+     struct lr_cell *prev_owner;
+     struct lr_cell *last_free;
 
-    owner_cell = lr_owner_find(lr, owner);
+     lock(lr);
 
-    if (lr->write == NULL) {
-        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-    }
+     owner_cell = lr_owner_find(lr, owner);
 
-    owner_cell = lr_owner_get(lr, owner);
+     if (lr->write == NULL) {
+         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+     }
 
-    if (owner_cell == NULL) {
-        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-    }
-    tail = lr_owner_tail(owner_cell);
+     owner_cell = lr_owner_get(lr, owner);
 
-    cell      = lr->write;
-    lr->write = lr->write->next;
+     if (owner_cell == NULL) {
+         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+     }
+     tail = lr_owner_tail(owner_cell);
 
-    cell->data = data;
+     cell      = lr->write;
+     lr->write = lr->write->next;
 
-    if (tail) {
-        /* If owner allready exists*/
-        cell->next = tail->next;
-        tail->next = cell;
-    } else {
-        /* If new owner */
-        if (owner_cell < lr_last_cell(lr)) {
-            /* If prev owner exists */
-            prev_owner = owner_cell + 1;
+     cell->data = data;
 
-            while (prev_owner->next == NULL) {
-                prev_owner += 1;
-            }
-            chain                  = prev_owner->next->next;
-            cell->next             = chain;
-            prev_owner->next->next = cell;
-        } else {
-            /* If first owner */
-            cell->next = cell;
-        }
-    }
+     if (tail) {
+         /* If owner already exists*/
+         cell->next = tail->next;
+         tail->next = cell;
+     } else {
+         /* If new owner */
+         if (owner_cell < lr_last_cell(lr)) {
+             /* If prev owner exists */
+             prev_owner = owner_cell + 1;
 
-    owner_cell->next = cell;
+             while (prev_owner->next == NULL && prev_owner < lr_last_cell(lr)) {
+                 prev_owner += 1;
+             }
 
-    unlock_and_return(lr, LR_OK);
-}
+             if (prev_owner->next != NULL) {
+                 chain = prev_owner->next->next;
+                 cell->next = chain;
+                 prev_owner->next->next = cell;
+             } else {
+                 /* If no valid previous owner found, create a self-referential loop */
+                 cell->next = cell;
+             }
+         } else {
+             /* If first owner */
+             cell->next = cell;
+         }
+     }
+
+     owner_cell->next = cell;
+
+     unlock_and_return(lr, LR_OK);
+ }
 
 lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data,
                            struct lr_cell *needle)
@@ -671,6 +678,7 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     while (prev_owner->next == NULL) {
         prev_owner += 1;
     }
+
     head                   = prev_owner->next->next;
     prev_owner->next->next = head->next;
 
@@ -960,23 +968,23 @@ lr_result_t lr_dump(struct linked_ring *lr)
     buffer_usage_percent = (total_elements + total_owners) * 100 / lr->size;
 
     // Print header with box drawing characters
-    printf("\n┌─────────────────────────────────────────┐\n");
-    printf("│       \033[1mLinked Ring Buffer Status\033[0m         │\n");
-    printf("├─────────────────────────┬───────────────┤\n");
-    printf("│ Memory Addresses        │ Values        │\n");
-    printf("├─────────────────────────┼───────────────┤\n");
-    printf("│ Head pointer            │ %p   │\n", head);
-    printf("│ Write pointer           │ %p   │\n", lr->write);
-    printf("│ Cells array             │ %p   │\n", lr->cells);
-    printf("├─────────────────────────┼───────────────┤\n");
-    printf("│ Buffer Metrics          │ Values        │\n");
-    printf("├─────────────────────────┼───────────────┤\n");
-    printf("│ Total capacity (cells)  │ %13d │\n", lr->size);
-    printf("│ Elements in buffer      │ %13ld │\n", total_elements);
-    printf("│ Owner count             │ %13ld │\n", total_owners);
-    printf("│ Available space (cells) │ %13ld │\n", available);
-    printf("│ Buffer usage            │ %ld%% full      │\n", buffer_usage_percent);
-    printf("└─────────────────────────┴───────────────┘\n");
+    printf("\n┌───────────────────────────────────────────┐\n");
+    printf("│         \033[1mLinked Ring Buffer Status\033[0m         │\n");
+    printf("├─────────────────────────┬─────────────────┤\n");
+    printf("│ Memory Addresses        │      Values     │\n");
+    printf("├─────────────────────────┼─────────────────┤\n");
+    printf("│ Head pointer            │ %15p │\n", head);
+    printf("│ Write pointer           │ %15p │\n", lr->write);
+    printf("│ Cells array             │ %15p │\n", lr->cells);
+    printf("├─────────────────────────┼─────────────────┤\n");
+    printf("│ Buffer Metrics          │      Values     │\n");
+    printf("├─────────────────────────┼─────────────────┤\n");
+    printf("│ Total capacity (cells)  │   %13d │\n", lr->size);
+    printf("│ Elements in buffer      │   %13ld │\n", total_elements);
+    printf("│ Owner count             │   %13ld │\n", total_owners);
+    printf("│ Available space         │   %13ld │\n", available);
+    printf("│ Buffer usage            │   %12ld%% │\n", buffer_usage_percent);
+    printf("└─────────────────────────┴─────────────────┘\n");
 
     // If buffer is empty, return early
     if (total_elements == 0) {
