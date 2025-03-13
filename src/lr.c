@@ -848,73 +848,73 @@ lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t *owner_pt
     unlock_and_return(lr, LR_OK);
 }
 
-lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
-{
-    struct lr_cell *head;
-    struct lr_cell *needle;
-    struct lr_cell *last_cell;
-    struct lr_cell *tail;
-    struct lr_cell *prev_owner;
-    struct lr_cell *owner_cell;
+ lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
+ {
+     struct lr_cell *head;
+     struct lr_cell *needle;
+     struct lr_cell *last_cell;
+     struct lr_cell *tail;
+     struct lr_cell *prev_owner;
+     struct lr_cell *owner_cell;
 
-    lock(lr);
+     lock(lr);
 
-    owner_cell = lr_owner_find(lr, owner);
-    if (owner_cell == NULL) {
-        return LR_ERROR_BUFFER_EMPTY;
-    }
+     owner_cell = lr_owner_find(lr, owner);
+     if (owner_cell == NULL) {
+         return LR_ERROR_BUFFER_EMPTY;
+     }
 
-    last_cell = lr_last_cell(lr);
-    if (owner_cell == last_cell) {
-        prev_owner = lr->owners;
-    } else {
-        prev_owner = owner_cell + 1;
-    }
-    while (prev_owner->next == NULL) {
-        prev_owner += 1;
-    }
-    head  = prev_owner->next->next;
-    tail  = lr_owner_tail(owner_cell);
-    *data = tail->data;
+     last_cell = lr_last_cell(lr);
+     if (owner_cell == last_cell) {
+         prev_owner = lr->owners;
+     } else {
+         prev_owner = owner_cell + 1;
+     }
+     while (prev_owner->next == NULL) {
+         prev_owner += 1;
+     }
+     head  = prev_owner->next->next;
+     tail  = lr_owner_tail(owner_cell);
+     *data = tail->data;
 
-    if (head == tail) {
-        /* If this is the last cell for this owner, remove the owner */
-        for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
-             owner_swap--) {
-            struct lr_cell *next_owner = owner_swap - 1;
-            *owner_swap                = *next_owner;
-        }
+     if (head == tail) {
+         /* If this is the last cell for this owner, remove the owner */
+         for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
+              owner_swap--) {
+             struct lr_cell *next_owner = owner_swap - 1;
+             *owner_swap                = *next_owner;
+         }
 
-        if (prev_owner != owner_cell)
-            prev_owner->next->next = tail->next;
+         if (prev_owner != owner_cell)
+             prev_owner->next->next = tail->next;
 
-        lr->owners->next = lr->write;
-        lr->write        = lr->owners;
+         lr->owners->next = lr->write;
+         lr->write        = lr->owners;
 
-        if (lr->owners == last_cell) {
-            lr->owners = NULL;
-        } else {
-            lr->owners += 1;
-        }
-    }
+         if (lr->owners == last_cell) {
+             lr->owners = NULL;
+         } else {
+             lr->owners += 1;
+         }
+     }
 
 
-    needle = head;
-    while (needle != tail) {
-        if (needle->next == tail) {
-            owner_cell->next = needle;
-            needle->next     = tail->next;
-            needle           = tail;
-        } else {
-            needle = needle->next;
-        }
-    }
+     needle = head;
+     while (needle != tail) {
+         if (needle->next == tail) {
+             owner_cell->next = needle;
+             needle->next     = tail->next;
+             needle           = tail;
+         } else {
+             needle = needle->next;
+         }
+     }
 
-    tail->next = lr->write;
-    lr->write  = tail;
+     tail->next = lr->write;
+     lr->write  = tail;
 
-    unlock_and_return(lr, LR_OK);
-}
+     unlock_and_return(lr, LR_OK);
+ }
 
 lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
                     size_t index)
