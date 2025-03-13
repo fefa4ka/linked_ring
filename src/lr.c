@@ -99,6 +99,12 @@ lr_result_t lr_resize(struct linked_ring *lr, size_t size,
         owner_needle->next = cells + data_pos;
         owner_needle++;
     }
+    
+    // Update buffer properties
+    lr->cells = cells;
+    lr->size = size;
+    lr->write = cells; // Reset write pointer to beginning of new buffer
+    lr->owners = owner_nr > 0 ? cells + size - owner_nr : NULL;
 
     return LR_OK;
 }
