@@ -10,6 +10,7 @@ endfunction()
 # Basic tests
 add_lr_test(test_basic basic.c)
 add_lr_test(test_debug_segfault debug_segfault.c)
+add_lr_test(test_segfault_single test_segfault_single.c)
 
 # Edge case tests
 add_lr_test(test_max_value max_value_test.c)
