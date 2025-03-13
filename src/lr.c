@@ -342,7 +342,7 @@ struct lr_cell *lr_owner_get(struct linked_ring *lr, lr_data_t owner)
  *
  * @param lr: pointer to the linked ring structure
  * @param limit: maximum number of elements to count (0 for no limit)
- * @param owner: the owner of the elements to count (0 for all owners)
+ * @param owner: the owner of the elements to count
  *
  * @return the number of elements owned by the specified owner (up to the limit,
  * if specified)

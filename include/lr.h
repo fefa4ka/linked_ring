@@ -4,31 +4,14 @@
 #include <stdio.h>
 
 
-/* `lr_data_t` is a typedef for the `uintptr_t` type, which is an unsigned
- * integer type that is large enough to hold a pointer value. It is used to
- * store the data for each element in the Linked Ring buffer.  */
+/* Type for storing data in the linked ring buffer */
 #define lr_data_t uintptr_t
-/* The `lr_data` macro is provided as a convenience for casting a pointer to the
- * `lr_data_t` type. This macro is useful for ensuring that the data is stored
- * as an unsigned integer, rather than a pointer, which may be necessary for
- * certain operations on the data. */
+/* Cast a pointer to lr_data_t type */
 #define lr_data(ptr) (uintptr_t)ptr
 
-/* `lr_owner_t` is a typedef for the `uintptr_t` type, which is an unsigned
- * integer type that is large enough to hold a pointer value. It is used to
- * store the owner or user associated with each element in the Linked Ring
- * buffer. The `lr_owner` macro is provided as a convenience for casting a
- * pointer to the `lr_owner_t` type. */
+/* Type for identifying owners in the linked ring buffer */
 #define lr_owner_t uintptr_t
-/* This macro is useful for ensuring that the owner is stored as an unsigned
- * integer, rather than a pointer, which may be necessary for certain operations
- * on the owner. The `lr_owner_t` type can be used to store either a pointer or
- * an enumerator value, depending on the needs of the application.
- *
- * It allows users to associate each element in the buffer with an "owner" or
- * user, which could be represented by either a pointer or an enumerator value.
- * This can be useful for organizing and controlling access to the elements in
- * the buffer, depending on the specific needs of the application. */
+/* Cast a pointer to lr_owner_t type */
 #define lr_owner(ptr) (uintptr_t)ptr
 
 
@@ -46,25 +29,19 @@ typedef enum lr_result {
 
 /* Representation of an element in the Linked Ring buffer */
 struct lr_cell {
-    lr_data_t       data; // The data for the element.
-    struct lr_cell *next; // A pointer to the next element in the Linked Ring
-                          // buffer. It allows the elements to be linked
-                          // together in a circular fashion.
+    lr_data_t       data; // The data for the element
+    struct lr_cell *next; // Pointer to the next element
 };
 
 struct linked_ring {
-    struct lr_cell *cells; // Allocated array of cells in the buffer
-    unsigned int    size;  // Maximum number of elements that can be stored
-                           // Buffer size = size - N_owners
-
+    struct lr_cell *cells;  // Allocated array of cells in the buffer
+    unsigned int    size;   // Maximum number of elements that can be stored
     struct lr_cell *write;  // Cell that is currently being written to
-    struct lr_cell *owners; // Cell from which data about owners in buffer
-                            // stored N_owners = cells + size - owners
+    struct lr_cell *owners; // First owner cell in the buffer
 
-    enum lr_result (*lock)(void *state); // used to make operations thread-safe
-    enum lr_result (*unlock)(void *state);
-
-    void *mutex_state;
+    enum lr_result (*lock)(void *state);   // Thread safety lock function
+    enum lr_result (*unlock)(void *state); // Thread safety unlock function
+    void *mutex_state;                     // State for mutex operations
 };
 
 /* Provides a mechanism for a thread to exclusively access the linked ring.
