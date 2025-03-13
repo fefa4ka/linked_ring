@@ -327,6 +327,8 @@ lr_result_t init_buffer(int buffer_size)
     return LR_OK;
 }
 
+lr_result_t test_edge_cases();
+lr_result_t test_high_load(int buffer_size, int iterations);
 /* Test function to reproduce and diagnose segfault */
 lr_result_t test_segfault_reproduction()
 {
