@@ -70,43 +70,96 @@ void *lr_memcpy(void *restrict dest, const void *restrict src, size_t n)
 lr_result_t lr_resize(struct linked_ring *lr, size_t size,
                       struct lr_cell *cells)
 {
-    struct lr_cell *data_needle  = NULL;
-    struct lr_cell *owner_needle = NULL;
-    size_t          owner_nr     = 0;
-    size_t          data_nr      = 0;
-
     if (cells == NULL || size == 0) {
         return LR_ERROR_NOMEMORY;
     }
-    owner_nr = lr_owners_count(lr);
-    // Copy all data from old cells to new cells, without owner cells
-    data_nr     = (lr->size - owner_nr);
-    data_needle = cells;
-    for (size_t i = 0; i < data_nr; i++) {
-        size_t data_pos
-            = (size_t)(lr->cells + lr->size - (lr->cells + i)->next);
-        data_needle->data = (lr->cells + i)->data;
-        data_needle->next = cells + data_pos;
-        data_needle++;
-    }
 
-    // Create owner cells and map them to the new data
-    owner_needle = cells + size - owner_nr;
-    for (size_t i = 0; i < owner_nr; i++) {
-        size_t data_pos
-            = (size_t)(lr->cells + lr->size - (lr->owners + i)->next);
-        owner_needle->data = (lr->owners + i)->data;
-        owner_needle->next = cells + data_pos;
-        owner_needle++;
+    lock(lr);
+
+    // Get current state information
+    size_t owner_count = lr_owners_count(lr);
+    size_t data_count = lr_count(lr);
+    
+    // Check if new size is sufficient
+    if (size < data_count + owner_count + 1) {
+        unlock_and_return(lr, LR_ERROR_NOMEMORY);
+    }
+    
+    // Initialize the new cells array
+    for (size_t i = 0; i < size - 1; i++) {
+        cells[i].next = &cells[i + 1];
+        cells[i].data = 0;
+    }
+    cells[size - 1].next = NULL;
+    cells[size - 1].data = 0;
+    
+    // Copy data cells
+    struct lr_cell *old_owners = lr->owners;
+    struct lr_cell *new_write = cells;
+    struct lr_cell *new_owners = NULL;
+    
+    if (owner_count > 0) {
+        // Set up new owners section
+        new_owners = &cells[size - owner_count];
+        
+        // Copy each owner's data
+        for (size_t i = 0; i < owner_count; i++) {
+            struct lr_cell *old_owner = &old_owners[i];
+            struct lr_cell *new_owner = &new_owners[i];
+            
+            // Copy owner ID
+            new_owner->data = old_owner->data;
+            new_owner->next = NULL;
+            
+            // Find head and tail for this owner
+            struct lr_cell *old_head = lr_owner_head(lr, old_owner);
+            struct lr_cell *old_tail = lr_owner_tail(old_owner);
+            
+            if (old_head != NULL) {
+                // Copy data for this owner
+                struct lr_cell *old_current = old_head;
+                struct lr_cell *new_head = new_write;
+                struct lr_cell *new_current = new_write;
+                
+                do {
+                    // Copy data
+                    new_current->data = old_current->data;
+                    
+                    // Move to next cell
+                    old_current = old_current->next;
+                    
+                    // If we have more data, prepare next cell
+                    if (old_current != old_tail->next) {
+                        new_write = new_write->next;
+                        new_current = new_write;
+                    }
+                } while (old_current != old_tail->next);
+                
+                // Set owner's tail to point to the last cell we copied
+                new_owner->next = new_current;
+                
+                // Move write pointer past the data we just copied
+                new_write = new_write->next;
+                
+                // Create circular structure for this owner's data
+                if (i < owner_count - 1) {
+                    // Link to next owner's data (which will be copied next)
+                    new_current->next = new_write;
+                } else {
+                    // Last owner links back to first owner's data
+                    new_current->next = new_head;
+                }
+            }
+        }
     }
     
     // Update buffer properties
     lr->cells = cells;
     lr->size = size;
-    lr->write = cells; // Reset write pointer to beginning of new buffer
-    lr->owners = owner_nr > 0 ? cells + size - owner_nr : NULL;
-
-    return LR_OK;
+    lr->write = new_write;
+    lr->owners = new_owners;
+    
+    unlock_and_return(lr, LR_OK);
 }
 
 
