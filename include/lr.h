@@ -159,3 +159,13 @@ lr_result_t lr_dump(struct linked_ring *lr);
 void lr_debug_cells_structure(struct linked_ring *lr);
 lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner);
 void lr_debug_relinked_structure(struct linked_ring *lr);
+
+/**
+ * Check and fix the integrity of the linked ring buffer.
+ * This function detects and repairs common structural issues like self-referential loops.
+ *
+ * @param lr: pointer to the linked ring structure
+ * @return LR_OK if the buffer is valid or was successfully repaired,
+ *         error code otherwise
+ */
+lr_result_t lr_check_integrity(struct linked_ring *lr);

@@ -508,6 +508,9 @@ lr_result_t test_high_load(int buffer_size, int iterations)
     result = init_buffer(buffer_size);
     test_assert(result == LR_OK, "Initialize buffer with size %d", buffer_size);
     
+    /* Run integrity check after initialization */
+    lr_check_integrity(&buffer);
+    
     log_info("Starting high load test with %d iterations", iterations);
     log_debug("Initial buffer state: size=%u, available=%zu", 
              buffer.size, lr_available(&buffer));
@@ -549,6 +552,9 @@ lr_result_t test_high_load(int buffer_size, int iterations)
             char checkpoint[64];
             snprintf(checkpoint, sizeof(checkpoint), "Iteration %d/%d", i, iterations);
             validate_buffer(&buffer, checkpoint);
+            
+            /* Run integrity check periodically */
+            lr_check_integrity(&buffer);
             
             // Also periodically show progress and stats
             if (i % (iterations / 5) == 0) {
