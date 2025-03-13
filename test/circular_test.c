@@ -81,6 +81,8 @@ lr_result_t verify_circular_structure(struct linked_ring *lr, lr_owner_t owner) 
         return LR_ERROR_UNKNOWN;
     }
     
+	lr_debug_circular_structure(&buffer, 1);
+	lr_debug_circular_structure(&buffer,        2);
     /* Verify the circular nature - tail's next should point to head */
     if (tail->next != head) {
         log_error("Circular structure broken - tail->next (%p) does not point to head (%p)",
