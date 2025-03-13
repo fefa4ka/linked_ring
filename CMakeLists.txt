@@ -4,47 +4,52 @@ project(lr VERSION 1.0
     DESCRIPTION "Linked Ring Data Structure"
     LANGUAGES C)
 
-add_library(lr STATIC src/lr.c src/lr_file.c)
+# Set compiler flags
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic")
+endif()
+
+# Library configuration
+add_library(lr STATIC 
+    src/lr.c 
+    src/lr_file.c
+)
 target_include_directories(lr PUBLIC include)
 
+# Testing configuration
 enable_testing()
 
+# Define a function to create tests more easily
+function(add_lr_test test_name test_file)
+    add_executable(${test_name} ${test_file})
+    target_link_libraries(${test_name} lr ${ARGN})
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endfunction()
+
 # Basic tests
-add_executable(test_basic test/basic.c)
-target_link_libraries(test_basic lr)
+add_lr_test(test_basic test/basic.c)
+add_lr_test(test_debug_segfault test/debug_segfault.c)
 
-add_test(NAME test_basic
-    COMMAND test_basic)
-
-add_executable(test_debug_segfault test/debug_segfault.c)
-target_link_libraries(test_debug_segfault lr)
-
-add_test(NAME test_debug_segfault
-    COMMAND test_debug_segfault)
-
-# Edge cases
-add_executable(test_max_value test/max_value_test.c)
-target_link_libraries(test_max_value lr)
-
-add_test(NAME test_max_value
-    COMMAND test_max_value)
-
-add_executable(test_edge test/edge.c)
-target_link_libraries(test_edge lr)
-
-add_test(NAME test_edge
-    COMMAND test_edge)
+# Edge case tests
+add_lr_test(test_max_value test/max_value_test.c)
+add_lr_test(test_edge test/edge.c)
 
 # Multi-threaded tests
-add_executable(test_multi_thread test/multi_thread.c)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-target_link_libraries(test_multi_thread PRIVATE lr pthread)
+find_package(Threads REQUIRED)
+add_lr_test(test_multi_thread test/multi_thread.c Threads::Threads)
 
-# Files tests
-# Copy test text files to the build directory
+# File tests
 file(COPY test/one_line.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-add_executable(test_files test/files.c)
-target_link_libraries(test_files lr)
-add_test(NAME test_files
-    COMMAND test_files)
+add_lr_test(test_files test/files.c)
+
+# Installation configuration
+include(GNUInstallDirs)
+install(TARGETS lr
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
