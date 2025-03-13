@@ -319,6 +319,11 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
         
         // Validate buffer after each put to catch issues early
         validate_buffer(&buffer, "After successful put");
+        
+        /* Run integrity check if we detect potential issues */
+        if (stats.segfault_risk_count > 0) {
+            lr_check_integrity(&buffer);
+        }
         return LR_OK;
     } else {
         stats.failed_puts++;
@@ -379,6 +384,11 @@ lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
         
         // Validate buffer after each get to catch issues early
         validate_buffer(&buffer, "After successful get");
+        
+        /* Run integrity check if we detect potential issues */
+        if (stats.segfault_risk_count > 0) {
+            lr_check_integrity(&buffer);
+        }
         return LR_OK;
     } else {
         stats.failed_gets++;
