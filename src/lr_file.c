@@ -82,13 +82,13 @@ lr_result_t lr_file_split(struct linked_ring *buffer, size_t line_no,
     struct lr_cell *owner_next_line
         = lr_owner_find(buffer, lr_owner(line_no + 1));
 
-    printf("Splitting line %lu at index %lu\n", line_no, index);
+    /*printf("Splitting line %lu at index %lu\n", line_no, index);*/
     struct lr_cell *owner_cell;
     for (owner_cell = lr_last_cell(buffer); owner_cell >= buffer->owners;
          owner_cell--) {
         if (owner_cell->data > line_no
             || (owner_cell->data == line_no && index == 0)) {
-            printf("Line %lu -> %lu\n", owner_cell->data, owner_cell->data + 1);
+            /*printf("Line %lu -> %lu\n", owner_cell->data, owner_cell->data + 1);*/
             owner_cell->data++;
         }
     }
@@ -98,8 +98,8 @@ lr_result_t lr_file_split(struct linked_ring *buffer, size_t line_no,
     }
 
     while (lr_file_pull(buffer, line_no, index, &data) == LR_OK) {
-        printf("Move from %lu.%lu -> %lu.%lu = %c\n", line_no, index,
-               line_no + 1, line_to_index, data);
+        /*printf("Move from %lu.%lu -> %lu.%lu = %c\n", line_no, index,*/
+        /*       line_no + 1, line_to_index, data);*/
         lr_insert(buffer, data, lr_owner(line_no + 1), line_to_index++);
     }
 
@@ -255,11 +255,11 @@ lr_result_t lr_file_write(struct linked_ring *buffer, size_t line_no,
 lr_result_t lr_file_write_string(struct linked_ring *buffer, size_t line_no,
                                  size_t index, char *data)
 {
-    printf("\nline_no= %lu\n", line_no);
+    /*printf("\nline_no= %lu\n", line_no);*/
     while (*data) {
         if (*data == '\n') {
-            printf("Before split: Owner of line %lu is %p\n", line_no,
-                   lr_owner(line_no));
+            /*printf("Before split: Owner of line %lu is %p\n", line_no,*/
+            /*       lr_owner(line_no));*/
             // Ensure new lines are properly split and accounted for
             lr_file_split(buffer, line_no, index);
 

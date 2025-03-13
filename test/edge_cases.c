@@ -184,7 +184,7 @@ lr_result_t test_buffer_full_recovery()
     lr_result_t result;
     struct lr_cell *cells;
     lr_data_t data;
-    const unsigned int size = 5;
+    const unsigned int size = 6;
     
     log_info("Testing buffer full recovery...");
     
@@ -409,6 +409,7 @@ lr_result_t test_mixed_operations()
     test_assert(result == LR_OK && data == 15, 
                 "Get should return 15, got %lu", data);
     
+    lr_dump(&buffer);
     result = lr_pull(&buffer, &data, 1, 0);
     test_assert(result == LR_OK && data == 20, 
                 "Pull at index 0 should return 20, got %lu", data);

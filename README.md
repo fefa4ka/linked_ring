@@ -17,7 +17,6 @@ The Linked Ring Buffer provides an efficient way to manage data in a circular bu
 - Efficient memory usage with configurable buffer size
 - FIFO (First-In-First-Out) data handling
 - String operations for text processing
-- File operations for reading/writing data to disk
 
 ## Building
 
@@ -71,22 +70,6 @@ lr_put_string(&buffer, (unsigned char*)"Hello", 1);
 
 // Print buffer contents
 lr_dump(&buffer);
-```
-
-## File Operations
-
-The library includes functions for working with files:
-
-```c
-// Open a file into the buffer
-lr_file_open(&buffer, "example.txt", buffer_size);
-
-// Read a line from the file
-lr_data_t line_data;
-lr_file_read_line(&buffer, line_no, &line_data);
-
-// Save buffer contents to a file
-lr_file_save(&buffer, "output.txt");
 ```
 
 ## License

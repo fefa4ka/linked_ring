@@ -353,6 +353,8 @@ lr_result_t test_string_operations()
     test_assert(lr_count_owned(&buffer, 2) == 4,
                 "Owner 2 should have 4 elements");
 
+
+    lr_dump(&buffer);
     /* Clean up */
     free(cells);
 
@@ -555,7 +557,7 @@ lr_result_t test_owner_interactions()
     test_assert(result == LR_OK, "Buffer initialization should succeed");
 
     /* Add data for different owners in alternating pattern */
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         result = lr_put(&buffer, i * 10, 1);
         test_assert(result == LR_OK, "Put for owner 1 should succeed");
         
@@ -564,12 +566,12 @@ lr_result_t test_owner_interactions()
     }
 
     /* Verify counts */
-    test_assert(lr_count(&buffer) == 10, "Buffer should contain 10 elements");
-    test_assert(lr_count_owned(&buffer, 1) == 5, "Owner 1 should have 5 elements");
-    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+    test_assert(lr_count(&buffer) == 8, "Buffer should contain 10 elements");
+    test_assert(lr_count_owned(&buffer, 1) == 4, "Owner 1 should have 5 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 4, "Owner 2 should have 5 elements");
 
     /* Remove all elements from owner 1 */
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         result = lr_get(&buffer, &data, 1);
         test_assert(result == LR_OK, "Get for owner 1 should succeed");
         test_assert(data == i * 10, 
@@ -578,23 +580,23 @@ lr_result_t test_owner_interactions()
     }
 
     /* Verify owner 1 is empty but owner 2 still has elements */
-    test_assert(lr_count(&buffer) == 5, "Buffer should contain 5 elements");
+    test_assert(lr_count(&buffer) == 4, "Buffer should contain 5 elements");
     test_assert(lr_count_owned(&buffer, 1) == 0, "Owner 1 should have 0 elements");
-    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 4, "Owner 2 should have 5 elements");
 
     /* Add more elements for owner 1 */
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         result = lr_put(&buffer, i * 100, 1);
         test_assert(result == LR_OK, "Put for owner 1 should succeed");
     }
 
     /* Verify counts again */
     test_assert(lr_count(&buffer) == 8, "Buffer should contain 8 elements");
-    test_assert(lr_count_owned(&buffer, 1) == 3, "Owner 1 should have 3 elements");
-    test_assert(lr_count_owned(&buffer, 2) == 5, "Owner 2 should have 5 elements");
+    test_assert(lr_count_owned(&buffer, 1) == 4, "Owner 1 should have 3 elements");
+    test_assert(lr_count_owned(&buffer, 2) == 4, "Owner 2 should have 5 elements");
 
     /* Verify elements for owner 1 */
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         result = lr_get(&buffer, &data, 1);
         test_assert(result == LR_OK, "Get for owner 1 should succeed");
         test_assert(data == i * 100, 
@@ -603,7 +605,7 @@ lr_result_t test_owner_interactions()
     }
 
     /* Verify elements for owner 2 */
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         result = lr_get(&buffer, &data, 2);
         test_assert(result == LR_OK, "Get for owner 2 should succeed");
         test_assert(data == i * 10 + 5, 

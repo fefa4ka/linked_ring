@@ -21,6 +21,7 @@
             log_ok(message, ##__VA_ARGS__); \
         } \
     } while (0)
+struct linked_ring buffer;
 
 /* Test function to verify UINTPTR_MAX handling */
 lr_result_t test_max_value_handling() {
@@ -32,6 +33,9 @@ lr_result_t test_max_value_handling() {
     log_info("Testing UINTPTR_MAX value handling...");
     
     /* Initialize buffer */
+    result = lr_init(&buffer, 10, NULL);
+    test_assert(result == LR_ERROR_NOMEMORY, 
+                "Buffer initialization with NULL cells should fail");
     cells = malloc(size * sizeof(struct lr_cell));
     result = lr_init(&buffer, size, cells);
     test_assert(result == LR_OK, "Buffer initialization should succeed");
