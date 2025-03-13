@@ -191,7 +191,6 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
 struct lr_cell *lr_cell_swap(struct linked_ring *lr, struct lr_cell *cell)
 {
     struct lr_cell *swap;
-    struct lr_cell *last_free;
 
     /* Store the cell at the write position in the swap variable */
     swap = lr->write;
@@ -439,7 +438,6 @@ void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr)
      struct lr_cell *chain;
      struct lr_cell *owner_cell;
      struct lr_cell *prev_owner;
-     struct lr_cell *last_free;
 
      if (lr == NULL) {
          return LR_ERROR_NOMEMORY;
@@ -511,7 +509,6 @@ void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr)
 lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data,
                            struct lr_cell *needle)
 {
-    size_t          cell_index;
     struct lr_cell *cell;
 
 
@@ -542,10 +539,8 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
     struct lr_cell *tail;
     struct lr_cell *last_cell;
     struct lr_cell *cell;
-    struct lr_cell *chain;
     struct lr_cell *owner_cell;
     struct lr_cell *prev_owner;
-    struct lr_cell *last_free;
 
     lock(lr);
 
@@ -637,9 +632,7 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
                            size_t *length, lr_owner_t owner)
 {
     struct lr_cell *needle;
-    struct lr_cell *last_cell;
     struct lr_cell *tail;
-    struct lr_cell *prev_owner;
     struct lr_cell *owner_cell;
 
     lock(lr);
@@ -1059,7 +1052,6 @@ lr_result_t lr_print(struct linked_ring *lr)
 
 lr_result_t lr_dump(struct linked_ring *lr)
 {
-    struct lr_cell *needle;
     struct lr_cell *head;
     size_t          buffer_usage_percent;
 
