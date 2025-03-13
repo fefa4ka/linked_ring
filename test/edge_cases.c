@@ -468,6 +468,35 @@ lr_result_t test_put_robustness()
     test_assert(result == LR_OK && data == 25, 
                 "Get for owner 2 should return 25, got %lu", data);
     
+    /* Test case 3: Test edge case with removing all owners */
+    log_info("Testing removal of all owners...");
+    
+    /* Reset buffer */
+    free(cells);
+    cells = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+    
+    /* Add data for a single owner */
+    result = lr_put(&buffer, 42, 1);
+    test_assert(result == LR_OK, "Put for owner 1 should succeed");
+    
+    /* Remove the only data element */
+    result = lr_get(&buffer, &data, 1);
+    test_assert(result == LR_OK && data == 42, 
+                "Get for owner 1 should return 42, got %lu", data);
+    
+    /* Verify buffer is empty */
+    test_assert(lr_count(&buffer) == 0, "Buffer should be empty");
+    
+    /* Add data again to verify structure integrity */
+    result = lr_put(&buffer, 99, 1);
+    test_assert(result == LR_OK, "Put after removing all owners should succeed");
+    
+    result = lr_get(&buffer, &data, 1);
+    test_assert(result == LR_OK && data == 99, 
+                "Get should return 99, got %lu", data);
+    
     /* Test case 2: Fill buffer to capacity with alternating owners */
     /* Reset buffer */
     free(cells);
@@ -527,6 +556,22 @@ lr_result_t test_boundary_indices()
     cells = malloc(size * sizeof(struct lr_cell));
     result = lr_init(&buffer, size, cells);
     test_assert(result == LR_OK, "Buffer initialization should succeed");
+    
+    /* Test NULL pointer handling */
+    log_info("Testing NULL pointer handling...");
+    
+    /* These should not crash but return an error */
+    result = lr_get(NULL, &data, 1);
+    test_assert(result != LR_OK, "Get with NULL buffer should return error");
+    
+    result = lr_get(&buffer, NULL, 1);
+    test_assert(result != LR_OK, "Get with NULL data pointer should return error");
+    
+    result = lr_pull(NULL, &data, 1, 0);
+    test_assert(result != LR_OK, "Pull with NULL buffer should return error");
+    
+    result = lr_pull(&buffer, NULL, 1, 0);
+    test_assert(result != LR_OK, "Pull with NULL data pointer should return error");
     
     /* Add some data */
     for (int i = 0; i < 5; i++) {

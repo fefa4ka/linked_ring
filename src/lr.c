@@ -664,6 +664,11 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
 
     lock(lr);
 
+    /* Validate input parameters */
+    if (lr == NULL || data == NULL) {
+        unlock_and_return(lr, LR_ERROR_UNKNOWN);
+    }
+
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
@@ -675,11 +680,18 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     } else {
         prev_owner = owner_cell + 1;
     }
-    while (prev_owner->next == NULL) {
+    
+    /* Make sure we don't go out of bounds */
+    while (prev_owner->next == NULL && prev_owner < last_cell) {
         prev_owner += 1;
     }
+    
+    /* Check if we found a valid previous owner */
+    if (prev_owner->next == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
 
-    head                   = prev_owner->next->next;
+    head = prev_owner->next->next;
     prev_owner->next->next = head->next;
 
     *data = head->data;
@@ -687,19 +699,24 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     if (head == tail) {
         /* If last cell for owner */
         /* delete and shorten the list, put a new link to lr->owners */
-        for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
-             owner_swap--) {
-            struct lr_cell *next_owner = owner_swap - 1;
-            *owner_swap                = *next_owner;
+        if (owner_cell > lr->owners) {
+            for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
+                 owner_swap--) {
+                struct lr_cell *next_owner = owner_swap - 1;
+                *owner_swap                = *next_owner;
+            }
         }
 
-        lr->owners->next = lr->write;
-        lr->write        = lr->owners;
+        /* Make sure we're not dereferencing NULL */
+        if (lr->owners != NULL) {
+            lr->owners->next = lr->write;
+            lr->write        = lr->owners;
 
-        if (lr->owners == last_cell) {
-            lr->owners = NULL;
-        } else {
-            lr->owners += 1;
+            if (lr->owners == last_cell) {
+                lr->owners = NULL;
+            } else {
+                lr->owners += 1;
+            }
         }
     }
 
@@ -792,6 +809,11 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
 
     lock(lr);
 
+    /* Validate input parameters */
+    if (lr == NULL || data == NULL) {
+        unlock_and_return(lr, LR_ERROR_UNKNOWN);
+    }
+
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
@@ -822,22 +844,27 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
             
             /* If last cell for owner */
             /* delete and shorten the list, put a new link to lr->owners */
-            for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
-                 owner_swap--) {
-                struct lr_cell *next_owner = owner_swap - 1;
-                *owner_swap                = *next_owner;
+            if (owner_cell > lr->owners) {
+                for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
+                     owner_swap--) {
+                    struct lr_cell *next_owner = owner_swap - 1;
+                    *owner_swap                = *next_owner;
+                }
             }
 
-            if (prev_owner != owner_cell)
+            if (prev_owner != owner_cell && prev_owner->next != NULL)
                 prev_owner->next->next = tail->next;
 
-            lr->owners->next = lr->write;
-            lr->write        = lr->owners;
+            /* Make sure we're not dereferencing NULL */
+            if (lr->owners != NULL) {
+                lr->owners->next = lr->write;
+                lr->write        = lr->owners;
 
-            if (lr->owners == last_cell) {
-                lr->owners = NULL;
-            } else {
-                lr->owners += 1;
+                if (lr->owners == last_cell) {
+                    lr->owners = NULL;
+                } else {
+                    lr->owners += 1;
+                }
             }
             
             head->next = lr->write;
