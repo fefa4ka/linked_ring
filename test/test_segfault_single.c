@@ -320,10 +320,6 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
         // Validate buffer after each put to catch issues early
         validate_buffer(&buffer, "After successful put");
         
-        /* Run integrity check if we detect potential issues */
-        if (stats.segfault_risk_count > 0) {
-            //lr_check_integrity(&buffer);
-        }
         return LR_OK;
     } else {
         stats.failed_puts++;
@@ -385,10 +381,6 @@ lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
         // Validate buffer after each get to catch issues early
         validate_buffer(&buffer, "After successful get");
         
-        /* Run integrity check if we detect potential issues */
-        if (stats.segfault_risk_count > 0) {
-            //lr_check_integrity(&buffer);
-        }
         return LR_OK;
     } else {
         stats.failed_gets++;
@@ -518,9 +510,6 @@ lr_result_t test_high_load(int buffer_size, int iterations)
     result = init_buffer(buffer_size);
     test_assert(result == LR_OK, "Initialize buffer with size %d", buffer_size);
     
-    /* Run integrity check after initialization */
-    //lr_check_integrity(&buffer);
-    
     log_info("Starting high load test with %d iterations", iterations);
     log_debug("Initial buffer state: size=%u, available=%zu", 
              buffer.size, lr_available(&buffer));
@@ -562,9 +551,6 @@ lr_result_t test_high_load(int buffer_size, int iterations)
             char checkpoint[64];
             snprintf(checkpoint, sizeof(checkpoint), "Iteration %d/%d", i, iterations);
             validate_buffer(&buffer, checkpoint);
-            
-            /* Run integrity check periodically */
-            //lr_check_integrity(&buffer);
             
             // Also periodically show progress and stats
             if (i % (iterations / 5) == 0) {

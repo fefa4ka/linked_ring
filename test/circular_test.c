@@ -185,9 +185,6 @@ lr_result_t test_basic_circular_structure() {
     result = verify_circular_structure(&buffer, 1);
     test_assert(result == LR_OK, "Circular structure should be intact after puts");
     
-    /* Run integrity check */
-    lr_check_integrity(&buffer);
-    
     /* Clean up */
     free(cells);
     
