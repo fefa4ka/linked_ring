@@ -6,7 +6,6 @@
 #include <time.h>
 
 /* Forward declarations for functions not in header */
-size_t lr_owners_count(struct linked_ring *lr);
 
 /* Test utilities */
 #define log_print(type, message, ...) \
@@ -280,6 +279,7 @@ size_t safe_lr_count(struct linked_ring *lr)
 lr_result_t add_data(lr_owner_t owner, lr_data_t value)
 {
     lr_result_t result;
+
     size_t count = safe_lr_count(&buffer);
     size_t available = lr_available(&buffer);
     size_t owner_count = lr_owners_count(&buffer);
@@ -294,6 +294,8 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
     
     // Attempt to put data in the buffer
     result = lr_put(&buffer, value, owner);
+	lr_dump(&buffer);
+	lr_debug_circular_structure(&buffer, owner);
     stats.total_puts++;
     
     if (result == LR_OK) {
