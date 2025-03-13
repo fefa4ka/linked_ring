@@ -778,7 +778,6 @@ lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     unlock_and_return(lr, LR_OK);
 }
 
-/* TODO: pull last owner cell don't work */
 lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
                     size_t index)
 {
@@ -805,60 +804,91 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         prev_owner = owner_cell + 1;
     }
 
-    while (prev_owner->next == NULL) {
+    while (prev_owner->next == NULL && prev_owner < last_cell) {
         prev_owner += 1;
     }
+    
+    if (prev_owner->next == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
+    
     head = prev_owner->next->next;
     tail = lr_owner_tail(owner_cell);
 
-    if (head == tail && index == 0) {
-        /* If last cell for owner */
-        /* delete and shorten the list, put a new link to lr->owners */
-        for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
-             owner_swap--) {
-            struct lr_cell *next_owner = owner_swap - 1;
-            *owner_swap                = *next_owner;
-        }
+    // Handle case where there's only one element for this owner
+    if (head == tail) {
+        if (index == 0) {
+            *data = head->data;
+            
+            /* If last cell for owner */
+            /* delete and shorten the list, put a new link to lr->owners */
+            for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
+                 owner_swap--) {
+                struct lr_cell *next_owner = owner_swap - 1;
+                *owner_swap                = *next_owner;
+            }
 
-        if (prev_owner != owner_cell)
-            prev_owner->next->next = tail->next;
+            if (prev_owner != owner_cell)
+                prev_owner->next->next = tail->next;
 
-        lr->owners->next = lr->write;
-        lr->write        = lr->owners;
+            lr->owners->next = lr->write;
+            lr->write        = lr->owners;
 
-        if (lr->owners == last_cell) {
-            lr->owners = NULL;
+            if (lr->owners == last_cell) {
+                lr->owners = NULL;
+            } else {
+                lr->owners += 1;
+            }
+            
+            head->next = lr->write;
+            lr->write  = head;
+            
+            unlock_and_return(lr, LR_OK);
         } else {
-            lr->owners += 1;
+            unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
         }
-    } else if (head == tail) {
-        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
-
-    needle       = prev_owner->next;
-    needle_index = 0;
-    while (needle_index != index && needle->next != tail) {
-        needle = needle->next;
-        needle_index++;
+    // Handle index 0 specially
+    if (index == 0) {
+        selected = head;
+        *data = selected->data;
+        prev_owner->next->next = selected->next;
+        
+        if (selected == tail) {
+            owner_cell->next = NULL;
+        }
+    } else {
+        // Find the element at the specified index
+        needle = head;
+        needle_index = 0;
+        
+        // Find the element before the one we want to pull
+        while (needle_index < index - 1 && needle->next != tail) {
+            needle = needle->next;
+            needle_index++;
+        }
+        
+        // If we couldn't reach the index
+        if (needle_index < index - 1) {
+            unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+        }
+        
+        selected = needle->next;
+        *data = selected->data;
+        
+        // Update the linked list to skip the pulled element
+        needle->next = selected->next;
+        
+        // If we're removing the tail, update the owner's tail pointer
+        if (selected == tail) {
+            owner_cell->next = needle;
+        }
     }
 
-    if (needle_index != index) {
-        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
-    }
-
-    selected = needle->next;
-    *data    = selected->data;
-    printf("Data: #%lu.%lu (%lu) = %c\n", owner, needle_index, index, *data);
-    needle->next = selected->next;
-
-    if (selected == tail) {
-        owner_cell->next = needle;
-    }
-
-
+    // Return the cell to the free list
     selected->next = lr->write;
-    lr->write      = selected;
+    lr->write = selected;
 
     unlock_and_return(lr, LR_OK);
 }
