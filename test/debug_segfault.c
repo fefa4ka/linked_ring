@@ -203,7 +203,6 @@ size_t safe_lr_count(struct linked_ring *lr)
     }
 
     log_debug("Count complete, length = %zu", length);
-	lr_dump(lr);
     return length;
 }
 
