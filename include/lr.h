@@ -156,4 +156,6 @@ lr_result_t lr_owner_cell_next(struct linked_ring *lr, lr_data_t owner,
 
 /* not thread-safe */
 lr_result_t lr_dump(struct linked_ring *lr);
+void lr_debug_cells_structure(struct linked_ring *lr);
 lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner);
+void lr_debug_relinked_structure(struct linked_ring *lr);

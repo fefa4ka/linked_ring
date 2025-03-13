@@ -445,10 +445,15 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
         return LR_ERROR_NOMEMORY;
     }
 
+    /* Debug: Print original cell structure before any changes */
+    printf("\n\033[1;34m=== BEFORE lr_put(data=%lu, owner=%lu) ===\033[0m\n", data, owner);
+    lr_debug_cells_structure(lr);
+
     lock(lr);
 
     /* Check if we have space to add a new element */
     if (lr->write == NULL) {
+        printf("\033[31mERROR: Buffer full, cannot add element\033[0m\n");
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
 
@@ -457,53 +462,72 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
     owner_cell = lr_owner_get(lr, owner);
 
     if (owner_cell == NULL) {
+        printf("\033[31mERROR: Could not get owner cell\033[0m\n");
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
     
     /* Get the tail for this owner */
     tail = lr_owner_tail(owner_cell);
+    printf("Owner cell: %p, Tail: %p\n", owner_cell, tail);
 
     /* Allocate a cell for the new data */
     cell = lr->write;
+    printf("Allocated cell at %p for new data\n", cell);
     
     /* Update write pointer to next available cell */
     lr->write = lr->write->next;
+    printf("Updated write pointer to %p\n", lr->write);
 
     /* Store the data */
     cell->data = data;
 
     if (tail) {
         /* If owner already exists, insert after tail while preserving the circular structure */
+        printf("Owner exists, inserting after tail. tail->next was %p\n", tail->next);
         cell->next = tail->next;
         tail->next = cell;
+        printf("Updated: tail->next = %p, cell->next = %p\n", tail->next, cell->next);
     } else {
         /* If new owner */
+        printf("New owner case\n");
         if (owner_cell < lr_last_cell(lr)) {
             /* If prev owner exists */
             prev_owner = owner_cell + 1;
+            printf("Looking for previous owner starting at %p\n", prev_owner);
 
             while (prev_owner->next == NULL && prev_owner < lr_last_cell(lr)) {
                 prev_owner += 1;
+                printf("Skipping owner with NULL next, now at %p\n", prev_owner);
             }
 
             if (prev_owner->next != NULL) {
                 /* Insert into the existing circular list */
                 chain = prev_owner->next->next;
+                printf("Found previous owner with valid next: %p->%p\n", 
+                       prev_owner->next, chain);
                 cell->next = chain;
                 prev_owner->next->next = cell;
+                printf("Inserted into circular list: prev_owner->next->next = %p, cell->next = %p\n", 
+                       prev_owner->next->next, cell->next);
             } else {
                 /* If no valid previous owner found, create a self-referential loop */
+                printf("No valid previous owner, creating self-referential loop\n");
                 cell->next = cell;
             }
         } else {
             /* If first owner, create a self-referential loop */
+            printf("First owner, creating self-referential loop\n");
             cell->next = cell;
         }
     }
 
     /* Update owner's tail pointer to the new cell */
+    printf("Updating owner's tail pointer from %p to %p\n", owner_cell->next, cell);
     owner_cell->next = cell;
 
+    /* Debug: Print relinked structure after changes */
+    printf("\n\033[1;34m=== AFTER lr_put(data=%lu, owner=%lu) ===\033[0m\n", data, owner);
+    lr_debug_relinked_structure(lr);
 
     unlock_and_return(lr, LR_OK);
 }
@@ -693,70 +717,98 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         return LR_ERROR_NOMEMORY;
     }
 
+    /* Debug: Print original cell structure before any changes */
+    printf("\n\033[1;34m=== BEFORE lr_get(owner=%lu) ===\033[0m\n", owner);
+    lr_debug_cells_structure(lr);
+
     lock(lr);
 
     /* Find the owner cell */
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
+        printf("\033[31mERROR: Owner %lu not found in buffer\033[0m\n", owner);
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
+    printf("Found owner cell at %p\n", owner_cell);
 
     /* Find the previous owner to get the head of our list */
     last_cell = lr_last_cell(lr);
     if (owner_cell == last_cell) {
         prev_owner = lr->owners;
+        printf("Owner is last cell, prev_owner starts at %p\n", prev_owner);
     } else {
         prev_owner = owner_cell + 1;
+        printf("Owner is not last cell, prev_owner starts at %p\n", prev_owner);
     }
     
     /* Find a valid previous owner with a next pointer */
     while (prev_owner->next == NULL && prev_owner < last_cell) {
         prev_owner += 1;
+        printf("Skipping owner with NULL next, now at %p\n", prev_owner);
     }
     
     /* If we couldn't find a valid previous owner, return empty */
     if (prev_owner->next == NULL) {
+        printf("\033[31mERROR: Could not find valid previous owner\033[0m\n");
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
+    printf("Found valid previous owner at %p with next=%p\n", prev_owner, prev_owner->next);
 
     /* Get the head of the list and update the circular structure */
     head = prev_owner->next->next;
+    printf("Head is at %p with data=%lu\n", head, head->data);
     prev_owner->next->next = head->next;
+    printf("Updated circular structure: prev_owner->next->next = %p\n", prev_owner->next->next);
 
     /* Extract the data */
     *data = head->data;
+    printf("Extracted data: %lu\n", *data);
     
     /* Get the tail for this owner */
     tail = lr_owner_tail(owner_cell);
+    printf("Tail is at %p\n", tail);
     
     if (head == tail) {
+        printf("Head == Tail, this is the last cell for this owner\n");
         /* If this was the last cell for this owner */
         /* Delete and shorten the list, put a new link to lr->owners */
         for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
              owner_swap--) {
             struct lr_cell *next_owner = owner_swap - 1;
+            printf("Moving owner from %p to %p\n", next_owner, owner_swap);
             *owner_swap = *next_owner;
         }
 
         /* Return the owner cell to the free list */
         if (lr->write == NULL) {
+            printf("Write was NULL, setting to owners (%p)\n", lr->owners);
             lr->write = lr->owners;
         } else {
+            printf("Linking owners->next to write: %p->%p\n", lr->owners, lr->write);
             lr->owners->next = lr->write;
             lr->write = lr->owners;
         }
 
         /* Update owners pointer */
         if (lr->owners == last_cell) {
+            printf("Owners was last cell, setting to NULL\n");
             lr->owners = NULL;
         } else {
+            printf("Incrementing owners from %p to %p\n", lr->owners, lr->owners + 1);
             lr->owners += 1;
         }
+    } else {
+        printf("Head != Tail, owner still has more data\n");
     }
 
     /* Return the cell to the free list */
+    printf("Returning cell %p to free list (write=%p)\n", head, lr->write);
     head->next = lr->write;
     lr->write = head;
+
+    /* Debug: Print relinked structure after changes */
+    printf("\n\033[1;34m=== AFTER lr_get(owner=%lu) ===\033[0m\n", owner);
+    lr_debug_relinked_structure(lr);
 
     unlock_and_return(lr, LR_OK);
 }
@@ -1111,6 +1163,32 @@ lr_result_t lr_dump(struct linked_ring *lr)
     unlock_and_return(lr, LR_OK);
 }
 
+/* Debug function to print the original cell structure */
+void lr_debug_cells_structure(struct linked_ring *lr) {
+    if (lr == NULL || lr->cells == NULL) {
+        printf("\033[31mERROR: Cannot debug NULL buffer or cells\033[0m\n");
+        return;
+    }
+
+    printf("\n\033[1;35m=== Original Cells Structure ===\033[0m\n");
+    printf("Buffer size: %u, Owners count: %zu\n", lr->size, lr_owners_count(lr));
+    printf("Cells array address: %p\n", lr->cells);
+    printf("Write pointer: %p\n", lr->write);
+    
+    printf("\n\033[1mCell array contents:\033[0m\n");
+    printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
+    printf("│ Index │     Address     │ Data Value │    Next Addr    │\n");
+    printf("├───────┼─────────────────┼────────────┼─────────────────┤\n");
+    
+    for (unsigned int i = 0; i < lr->size; i++) {
+        struct lr_cell *cell = &lr->cells[i];
+        printf("│ %5u │ %15p │ %10lu │ %15p │\n",
+               i, cell, cell->data, cell->next);
+    }
+    
+    printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
+}
+
 /* Debug function to visualize circular structure for a specific owner */
 lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner) {
     struct lr_cell *owner_cell = lr_owner_find(lr, owner);
@@ -1158,4 +1236,66 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
     printf("\033[32mCircular structure follows single-circle design\033[0m\n");
 
     return LR_OK;
+}
+
+/* Debug function to show the relinked structure after operations */
+void lr_debug_relinked_structure(struct linked_ring *lr) {
+    if (lr == NULL || lr->cells == NULL) {
+        printf("\033[31mERROR: Cannot debug NULL buffer or cells\033[0m\n");
+        return;
+    }
+    
+    printf("\n\033[1;33m=== Relinked Structure After Operations ===\033[0m\n");
+    
+    // Print free list (write chain)
+    struct lr_cell *free_cell = lr->write;
+    size_t free_count = 0;
+    
+    printf("\n\033[1mFree cells chain (write pointer chain):\033[0m\n");
+    printf("Write pointer: %p\n", lr->write);
+    
+    if (free_cell == NULL) {
+        printf("No free cells available (buffer full)\n");
+    } else {
+        printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
+        printf("│ Index │     Address     │ Data Value │    Next Addr    │\n");
+        printf("├───────┼─────────────────┼────────────┼─────────────────┤\n");
+        
+        while (free_cell != NULL && free_count < lr->size) {
+            printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
+                   free_count, free_cell, free_cell->data, free_cell->next);
+            
+            if (free_cell->next == NULL) break;
+            free_cell = free_cell->next;
+            free_count++;
+            
+            // Safety check
+            if (free_count >= lr->size) {
+                printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
+                printf("\033[31mWARNING: Possible loop in free list\033[0m\n");
+                break;
+            }
+        }
+        printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
+        printf("Total free cells: %zu\n", free_count + 1);
+    }
+    
+    // Print owners information
+    size_t owner_count = lr_owners_count(lr);
+    printf("\n\033[1mOwners (%zu total):\033[0m\n", owner_count);
+    
+    if (owner_count == 0) {
+        printf("No owners in buffer\n");
+    } else {
+        printf("┌───────┬─────────────────┬────────────┬─────────────────┐\n");
+        printf("│ Index │     Address     │  Owner ID  │    Tail Addr    │\n");
+        printf("├───────┼─────────────────┼────────────┼─────────────────┤\n");
+        
+        for (size_t i = 0; i < owner_count; i++) {
+            struct lr_cell *owner_cell = lr->owners + i;
+            printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
+                   i, owner_cell, owner_cell->data, owner_cell->next);
+        }
+        printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
+    }
 }
