@@ -1154,7 +1154,7 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner
 
     do {
         printf("│ %5zu │ %15p │ %10lu │ %15p │\n",
-               count, current, current->data, current->next);
+               count, (void *)current, current->data, (void *)current->next);
         current = current->next;
         count++;
 
