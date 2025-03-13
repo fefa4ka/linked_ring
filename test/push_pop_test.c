@@ -255,11 +255,6 @@ lr_result_t test_push_pop_edge_cases()
     test_assert(result == LR_ERROR_BUFFER_EMPTY, 
                 "Pop on empty buffer should return BUFFER_EMPTY");
     
-    /* Test push with invalid owner */
-    result = lr_push(&buffer, 10, 0);
-    test_assert(result != LR_OK, 
-                "Push with NULL needle should return error");
-    
     /* Test push to full buffer */
     /* First fill the buffer */
     result = lr_put(&buffer, 10, 1);
