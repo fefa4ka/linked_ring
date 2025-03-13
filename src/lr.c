@@ -1122,7 +1122,7 @@ void lr_debug_cells_structure(struct linked_ring *lr) {
     for (unsigned int i = 0; i < lr->size; i++) {
         struct lr_cell *cell = &lr->cells[i];
         printf("│ %5u │ %15p │ %10lu │ %15p │\n",
-               i, cell, cell->data, cell->next);
+               i, (void *)cell, cell->data, (void *)cell->next);
     }
     
     printf("└───────┴─────────────────┴────────────┴─────────────────┘\n");
