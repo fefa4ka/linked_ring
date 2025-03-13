@@ -14,6 +14,7 @@ add_lr_test(test_debug_segfault debug_segfault.c)
 # Edge case tests
 add_lr_test(test_max_value max_value_test.c)
 add_lr_test(test_edge edge.c)
+add_lr_test(test_edge_cases edge_cases.c)
 
 # Multi-threaded tests
 set(THREADS_PREFER_PTHREAD_FLAG ON)
