@@ -175,11 +175,11 @@ void validate_buffer(struct linked_ring *lr, const char *checkpoint)
 
     // Check owners
     log_debug("Checking owners...");
-    size_t owner_count = lr_owners_count(lr);
-    log_debug("Owner count: %zu", owner_count);
+    size_t owners_count = lr_owners_count(lr);
+    log_debug("Owner count: %zu", owners_count);
 
     for (struct lr_cell *owner_cell = lr->owners;
-         owner_cell < lr->owners + owner_count; owner_cell++) {
+         owner_cell < lr->owners + owners_count; owner_cell++) {
         log_debug("  Owner %zu: data: 0x%lx, next: %p",
                   (size_t)(owner_cell - lr->owners), owner_cell->data,
                   owner_cell->next);
