@@ -5,6 +5,9 @@
 #include <string.h>
 #include <time.h>
 
+/* Forward declarations for functions not in header */
+size_t lr_owners_count(struct linked_ring *lr);
+
 /* Test utilities */
 #define log_print(type, message, ...) \
     printf(type "\t" message "\n", ##__VA_ARGS__)
