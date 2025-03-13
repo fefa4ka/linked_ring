@@ -318,7 +318,7 @@ struct lr_cell *lr_owner_get(struct linked_ring *lr, lr_data_t owner)
     if (owner_cell)
         return owner_cell;
 
-    /* If the write position is not empty, allocate a new owner cell */
+    /* If the write position is empty, we can't allocate a new owner cell */
     if (!lr->write->next)
         return NULL;
 
