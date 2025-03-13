@@ -173,6 +173,35 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
         head = prev_owner->next->next;
     }
 
+    /* Verify head is valid */
+    if (head == NULL) {
+        return NULL;
+    }
+
+    /* Verify circular structure - head should be part of a circular list */
+    struct lr_cell *needle = head;
+    size_t count = 0;
+    size_t max_iterations = lr->size * 2; // Safety limit
+    
+    while (needle != NULL && needle->next != NULL && count < max_iterations) {
+        if (needle->next == head) {
+            /* Found circular reference back to head */
+            return head;
+        }
+        needle = needle->next;
+        count++;
+    }
+    
+    /* If we get here, the circular structure is broken */
+    /* Try to repair it if possible */
+    if (owner_cell->next != NULL) {
+        /* Use the owner's tail to create a circular reference */
+        struct lr_cell *tail = owner_cell->next;
+        if (tail != head) {
+            tail->next = head;
+        }
+    }
+    
     return head;
 }
 
@@ -578,6 +607,12 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
             printf("WARNING: Circular structure broken after put for owner %lu\n", owner);
             printf("New cell %p should point to head %p but points to %p\n",
                    cell, head, cell->next);
+            
+            // Attempt to repair the circular structure
+            if (head != NULL) {
+                cell->next = head;
+                printf("Circular structure repaired: cell->next now points to head\n");
+            }
         }
     }
     #endif
@@ -807,7 +842,12 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
     }
     
     /* Update the circular structure */
-    prev_owner->next->next = head->next;
+    if (head->next != NULL) {
+        prev_owner->next->next = head->next;
+    } else {
+        /* If head->next is NULL, we have a broken circular structure */
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
 
     /* Extract the data */
     *data = head->data;
@@ -854,6 +894,15 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         /* If head is already the write pointer, just ensure next is valid */
         if (head->next == head) {  /* Break self-reference */
             head->next = NULL;
+        } else if (head->next == NULL) {
+            /* If head->next is NULL, we need to find another cell to use */
+            for (size_t i = 0; i < lr->size; i++) {
+                if (&lr->cells[i] != head && 
+                    (lr->owners == NULL || &lr->cells[i] < lr->owners)) {
+                    head->next = &lr->cells[i];
+                    break;
+                }
+            }
         }
     }
 
