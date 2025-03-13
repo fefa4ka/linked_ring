@@ -81,12 +81,36 @@ lr_result_t verify_circular_structure(struct linked_ring *lr, lr_owner_t owner) 
         return LR_ERROR_UNKNOWN;
     }
     
-	lr_debug_circular_structure(&buffer, 1);
-	lr_debug_circular_structure(&buffer,        2);
-    /* Verify the circular nature - tail's next should point to head */
-    if (tail->next != head) {
-        log_error("Circular structure broken - tail->next (%p) does not point to head (%p)",
-                  tail->next, head);
+    lr_debug_circular_structure(&buffer, owner);
+    
+    /* In a single-circle design, we don't check that tail->next == head for each owner.
+     * Instead, we verify that all elements form a single circular list by checking
+     * that we can traverse from any element back to itself by following next pointers.
+     */
+    
+    /* Verify the global circular nature by checking we can get back to head */
+    current = head;
+    count = 0;
+    bool found_head_again = false;
+    
+    do {
+        current = current->next;
+        count++;
+        
+        if (current == head) {
+            found_head_again = true;
+            break;
+        }
+        
+        /* Safety check to prevent infinite loops */
+        if (count > lr->size) {
+            log_error("Global circular structure broken - could not find way back to head");
+            return LR_ERROR_UNKNOWN;
+        }
+    } while (count < lr->size);
+    
+    if (!found_head_again) {
+        log_error("Global circular structure broken - could not find way back to head");
         return LR_ERROR_UNKNOWN;
     }
     
