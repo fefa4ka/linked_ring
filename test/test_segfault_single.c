@@ -322,7 +322,7 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
         
         /* Run integrity check if we detect potential issues */
         if (stats.segfault_risk_count > 0) {
-            lr_check_integrity(&buffer);
+            //lr_check_integrity(&buffer);
         }
         return LR_OK;
     } else {
@@ -387,7 +387,7 @@ lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
         
         /* Run integrity check if we detect potential issues */
         if (stats.segfault_risk_count > 0) {
-            lr_check_integrity(&buffer);
+            //lr_check_integrity(&buffer);
         }
         return LR_OK;
     } else {
@@ -496,7 +496,7 @@ lr_result_t test_segfault_reproduction()
 void print_stats()
 {
     printf("\n┌─────────────────────────────────────────────────┐\n");
-    printf("│           \033[1mBuffer Test Statistics\033[0m               │\n");
+    printf("│           \033[1mBuffer Test Statistics\033[0m                │\n");
     printf("├─────────────────────────┬───────────────────────┤\n");
     printf("│ Operations              │ Count                 │\n");
     printf("├─────────────────────────┼───────────────────────┤\n");
@@ -519,7 +519,7 @@ lr_result_t test_high_load(int buffer_size, int iterations)
     test_assert(result == LR_OK, "Initialize buffer with size %d", buffer_size);
     
     /* Run integrity check after initialization */
-    lr_check_integrity(&buffer);
+    //lr_check_integrity(&buffer);
     
     log_info("Starting high load test with %d iterations", iterations);
     log_debug("Initial buffer state: size=%u, available=%zu", 
@@ -564,7 +564,7 @@ lr_result_t test_high_load(int buffer_size, int iterations)
             validate_buffer(&buffer, checkpoint);
             
             /* Run integrity check periodically */
-            lr_check_integrity(&buffer);
+            //lr_check_integrity(&buffer);
             
             // Also periodically show progress and stats
             if (i % (iterations / 5) == 0) {

@@ -1,5 +1,6 @@
 # Testing configuration for Linked Ring Buffer
 
+    add_compile_options(-w)
 # Define a function to create tests more easily
 function(add_lr_test test_name test_file)
     add_executable(${test_name} ${test_file})

@@ -319,7 +319,7 @@ lr_result_t get_random_owner_data()
 void print_stats()
 {
     printf("\n┌─────────────────────────────────────────────────┐\n");
-    printf("│           \033[1mBuffer Test Statistics\033[0m              │\n");
+    printf("│           \033[1mBuffer Test Statistics\033[0m                │\n");
     printf("├─────────────────────────┬───────────────────────┤\n");
     printf("│ Operations              │ Count                 │\n");
     printf("├─────────────────────────┼───────────────────────┤\n");
@@ -334,7 +334,7 @@ void print_stats()
     printf("├─────────────────────────┼───────────────────────┤\n");
     
     for (int i = 0; i < NUM_OWNERS; i++) {
-        printf("│ %-23s │ %lu / %-16lu │\n", 
+        printf("│ %-23s │ %lu / %-15lu │\n", 
                owner_to_string(i), stats.owner_puts[i], stats.owner_gets[i]);
     }
     
