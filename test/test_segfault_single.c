@@ -216,11 +216,20 @@ size_t safe_lr_count(struct linked_ring *lr)
         stats.segfault_risk_count++;
         return 0;
     }
+    
+    // Check if head is within valid buffer range
+    if (head < lr->cells || head >= lr->cells + lr->size) {
+        log_error("CRITICAL: Head pointer (%p) is outside buffer range (%p to %p)",
+                 head, lr->cells, lr->cells + lr->size);
+        stats.segfault_risk_count++;
+        return 0;
+    }
 
     length = 1;
     needle = head;
 
     log_debug("Starting count with head=%p, needle=%p", head, needle);
+    log_debug("Buffer range: %p to %p", lr->cells, lr->cells + lr->size);
 
     // Safety limit to prevent infinite loops
     size_t max_iterations = lr->size * 2;
