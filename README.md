@@ -176,3 +176,83 @@ We hope these ideas inspire you to make a contribution to the Linked Ring Buffer
 ## Credits
 
 -   Alexander Kodratev (alex@nder.work)
+# Linked Ring Buffer
+
+A high-performance, thread-safe circular buffer implementation in C with unique ownership semantics.
+
+## Overview
+
+The Linked Ring Buffer is a specialized data structure that combines the benefits of a circular buffer with linked list-like operations. It provides:
+
+- Efficient FIFO (First-In-First-Out) operations
+- Multiple owner support for data segregation
+- Thread-safe operations with customizable mutex implementations
+- Memory-efficient design with no dynamic allocations
+- String handling utilities
+
+## Features
+
+- **Multiple Owner Support**: Segregate data by owner/user for organized access
+- **Thread Safety**: Optional mutex support for concurrent access
+- **Efficient Memory Usage**: Fixed-size buffer with no dynamic allocations
+- **Flexible API**: Support for various operations like put, get, insert, pull
+- **String Operations**: Utilities for handling string data
+- **File Operations**: Support for file I/O operations
+
+## Building
+
+The project uses CMake for building:
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+```
+
+## Testing
+
+Several test suites are included to verify functionality:
+
+```bash
+# Run all tests
+ctest
+
+# Run specific test
+./test_basic
+./test_files
+./test_edge
+```
+
+## Basic Usage
+
+```c
+#include <lr.h>
+#include <stdlib.h>
+
+int main() {
+    // Initialize buffer
+    struct linked_ring buffer;
+    struct lr_cell *cells = malloc(10 * sizeof(struct lr_cell));
+    lr_init(&buffer, 10, cells);
+    
+    // Add data with owner 1
+    lr_put(&buffer, 42, 1);
+    lr_put(&buffer, 43, 1);
+    
+    // Add data with owner 2
+    lr_put(&buffer, 100, 2);
+    
+    // Retrieve data for specific owner
+    lr_data_t data;
+    lr_get(&buffer, &data, 1);  // Gets 42
+    
+    // Clean up
+    free(cells);
+    return 0;
+}
+```
+
+## License
+
+This project is available under the MIT License.
