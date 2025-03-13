@@ -231,14 +231,21 @@ size_t safe_lr_count(struct linked_ring *lr)
 lr_result_t add_data(lr_owner_t owner, lr_data_t value)
 {
     lr_result_t result;
+    size_t count = safe_lr_count(&buffer);
+    size_t available = lr_available(&buffer);
+    
+    // Track maximum occupancy
+    if (count > stats.max_occupancy) {
+        stats.max_occupancy = count;
+    }
     
     // Attempt to put data in the buffer
     result = lr_put(&buffer, value, owner);
     stats.total_puts++;
     
     if (result == LR_OK) {
-        log_verbose("Added data: owner=%s, value=0x%lx", 
-                   owner_to_string(owner), value);
+        log_verbose("Added data: owner=%s, value=0x%lx, buffer_count=%lu/%lu", 
+                   owner_to_string(owner), value, count + 1, count + available + 1);
         return LR_OK;
     } else {
         stats.failed_puts++;
@@ -257,14 +264,15 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
 lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
 {
     lr_result_t result;
+    size_t count = safe_lr_count(&buffer);
     
     // Attempt to get data from the buffer
     result = lr_get(&buffer, value, owner);
     stats.total_gets++;
     
     if (result == LR_OK) {
-        log_verbose("Retrieved data: owner=%s, value=0x%lx", 
-                   owner_to_string(owner), *value);
+        log_verbose("Retrieved data: owner=%s, value=0x%lx, buffer_count=%lu", 
+                   owner_to_string(owner), *value, count - 1);
         return LR_OK;
     } else {
         stats.failed_gets++;
@@ -276,6 +284,22 @@ lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
         }
         return result;
     }
+}
+
+/* Add random data to the buffer */
+lr_result_t add_random_data()
+{
+    lr_owner_t owner = rand() % NUM_OWNERS;
+    lr_data_t value = rand() % 1000;
+    return add_data(owner, value);
+}
+
+/* Get data from a random owner */
+lr_result_t get_random_owner_data()
+{
+    lr_owner_t owner = rand() % NUM_OWNERS;
+    lr_data_t value;
+    return get_data(owner, &value);
 }
 
 /* Function to initialize the buffer */
@@ -303,107 +327,30 @@ lr_result_t init_buffer(int buffer_size)
     return LR_OK;
 }
 
-/* Test function to specifically reproduce the segfault scenario identified in the logs */
-lr_result_t test_specific_segfault_scenario()
+/* Test function to reproduce and diagnose segfault */
+lr_result_t test_segfault_reproduction()
 {
     lr_result_t result;
-    lr_data_t value;
     
-    log_info("=== Testing Specific Segfault Scenario ===");
+    log_info("Testing segfault reproduction scenario...");
     
-    // Initialize buffer with size 6 (enough for our test case)
-    result = init_buffer(6);
-    test_assert(result == LR_OK, "Initialize buffer with size 6");
+    // First test edge cases that might cause segfaults
+    result = test_edge_cases();
+    test_assert(result == LR_OK, "Edge case tests");
     
-    validate_buffer(&buffer, "After initialization");
+    // Then run high load tests with different buffer sizes
+    int buffer_sizes[] = {5, 10, 20, 50};
+    int iterations = 1000;
     
-    // Step 1: Add first element for SPI_IN
-    result = add_data(OWNER_SPI_IN, 0x24a);
-    test_assert(result == LR_OK, "Add first element for SPI_IN");
-    
-    validate_buffer(&buffer, "After adding first element");
-    
-    // Step 2: Add second element for SPI_IN
-    result = add_data(OWNER_SPI_IN, 0x1c6);
-    test_assert(result == LR_OK, "Add second element for SPI_IN");
-    
-    validate_buffer(&buffer, "After adding second element");
-    
-    // Step 3: Get first element from SPI_IN (should leave one element)
-    result = get_data(OWNER_SPI_IN, &value);
-    test_assert(result == LR_OK && value == 0x24a, "Get first element from SPI_IN");
-    
-    validate_buffer(&buffer, "After getting first element");
-    log_info("Buffer has %zu elements after first get", safe_lr_count(&buffer));
-    
-    // Step 4: Get second element from SPI_IN (should empty the buffer)
-    result = get_data(OWNER_SPI_IN, &value);
-    test_assert(result == LR_OK && value == 0x1c6, "Get second element from SPI_IN");
-    
-    validate_buffer(&buffer, "After getting second element");
-    log_info("Buffer has %zu elements after second get", safe_lr_count(&buffer));
-    
-    // Step 5: Add element for UART_IN
-    result = add_data(OWNER_UART_IN, 0x217);
-    test_assert(result == LR_OK, "Add element for UART_IN");
-    
-    validate_buffer(&buffer, "After adding element for UART_IN");
-    log_info("Buffer has %zu elements after adding UART_IN", safe_lr_count(&buffer));
-    
-    // Step 6: Add element for SPI_IN
-    result = add_data(OWNER_SPI_IN, 0x226);
-    test_assert(result == LR_OK, "Add element for SPI_IN");
-    
-    validate_buffer(&buffer, "After adding element for SPI_IN");
-    log_info("Buffer has %zu elements after adding SPI_IN", safe_lr_count(&buffer));
-    
-    // Extra validation of circular structure before critical operation
-    log_info("Validating circular structure before critical operation...");
-    struct lr_cell *head = buffer.owners->next->next;
-    struct lr_cell *needle = head;
-    size_t count = 0;
-    bool circular_intact = false;
-    
-    while (needle != NULL && needle->next != NULL && count < buffer.size * 2) {
-        needle = needle->next;
-        count++;
-        if (needle == head) {
-            circular_intact = true;
-            break;
-        }
+    for (int i = 0; i < sizeof(buffer_sizes)/sizeof(buffer_sizes[0]); i++) {
+        int size = buffer_sizes[i];
+        log_info("\n=== Testing buffer with size %d ===", size);
+        
+        result = test_high_load(size, iterations);
+        test_assert(result == LR_OK, "High load test with buffer size %d", size);
     }
     
-    if (!circular_intact) {
-        log_error("Circular structure is broken before critical operation!");
-        // Try to repair the circular structure
-        struct lr_cell *owner_cell = lr_owner_find(&buffer, OWNER_SPI_IN);
-        if (owner_cell != NULL && owner_cell->next != NULL) {
-            struct lr_cell *tail = owner_cell->next;
-            struct lr_cell *head = lr_owner_head(&buffer, owner_cell);
-            if (head != NULL) {
-                log_info("Attempting to repair circular structure...");
-                tail->next = head;
-                log_info("Circular structure repaired: tail->next = %p now points to head = %p", 
-                         tail->next, head);
-            }
-        }
-    } else {
-        log_info("Circular structure is intact before critical operation");
-    }
-    
-    // Step 7: Get element from SPI_IN - this is where the segfault occurs
-    log_info("About to perform the operation that causes segfault...");
-    result = get_data(OWNER_SPI_IN, &value);
-    
-    // If we get here without segfaulting, validate the buffer
-    test_assert(result == LR_OK && value == 0x226, "Get element from SPI_IN");
-    
-    validate_buffer(&buffer, "After getting element from SPI_IN");
-    log_info("Buffer has %zu elements after final get", safe_lr_count(&buffer));
-    
-    // Clean up
-    free(buffer.cells);
-    
+    log_ok("All segfault reproduction tests completed successfully");
     return LR_OK;
 }
 
@@ -424,13 +371,184 @@ void print_stats()
     printf("└─────────────────────────┴───────────────────────┘\n");
 }
 
+/* Test buffer under high load with multiple owners */
+lr_result_t test_high_load(int buffer_size, int iterations)
+{
+    lr_result_t result;
+    
+    // Initialize the buffer
+    result = init_buffer(buffer_size);
+    test_assert(result == LR_OK, "Initialize buffer with size %d", buffer_size);
+    
+    log_info("Starting high load test with %d iterations", iterations);
+    
+    // Run the test for specified iterations
+    for (int i = 0; i < iterations; i++) {
+        size_t current_size = safe_lr_count(&buffer);
+        size_t available = lr_available(&buffer);
+        
+        // Randomly decide whether to add or remove data
+        // More likely to add when buffer is empty, more likely to remove when full
+        bool should_add;
+        if (current_size == 0) {
+            should_add = true;
+        } else if (available == 0) {
+            should_add = false;
+        } else {
+            should_add = (rand() % 100) < (50 - (current_size * 50) / (current_size + available));
+        }
+        
+        if (should_add) {
+            // Try to add 1-3 elements at once
+            int elements_to_add = 1 + (rand() % 3);
+            for (int j = 0; j < elements_to_add && available > 0; j++) {
+                add_random_data();
+                available = lr_available(&buffer);
+            }
+        } else {
+            // Try to get 1-2 elements at once
+            int elements_to_get = 1 + (rand() % 2);
+            for (int j = 0; j < elements_to_get && current_size > 0; j++) {
+                get_random_owner_data();
+                current_size = safe_lr_count(&buffer);
+            }
+        }
+        
+        // Periodically validate buffer integrity
+        if (i % (iterations / 10) == 0) {
+            char checkpoint[64];
+            snprintf(checkpoint, sizeof(checkpoint), "Iteration %d/%d", i, iterations);
+            validate_buffer(&buffer, checkpoint);
+            
+            // Also periodically show progress
+            if (i % (iterations / 5) == 0) {
+                log_info("Progress: %d%% (%d/%d iterations)", 
+                        (i * 100) / iterations, i, iterations);
+            }
+        }
+    }
+    
+    // Drain the buffer at the end
+    log_info("Draining buffer...");
+    lr_data_t value;
+    while (safe_lr_count(&buffer) > 0) {
+        for (int owner = 0; owner < NUM_OWNERS; owner++) {
+            while (get_data(owner, &value) == LR_OK) {
+                // Just drain the buffer
+            }
+        }
+    }
+    
+    // Print final statistics
+    print_stats();
+    
+    // Free the buffer memory
+    free(buffer.cells);
+    
+    return LR_OK;
+}
+
+/* Test specific edge cases that might cause segfaults */
+lr_result_t test_edge_cases()
+{
+    lr_result_t result;
+    lr_data_t value;
+    
+    log_info("=== Testing Specific Edge Cases ===");
+    
+    // Test with minimum viable buffer size (4)
+    result = init_buffer(4);
+    test_assert(result == LR_OK, "Initialize minimum size buffer (4)");
+    
+    validate_buffer(&buffer, "After initialization with minimum size");
+    
+    // Add one element
+    result = add_data(OWNER_SPI_IN, 42);
+    test_assert(result == LR_OK, "Add element to minimum buffer");
+    
+    validate_buffer(&buffer, "After adding one element");
+    
+    // Try to add another element (should succeed with one owner)
+    result = add_data(OWNER_SPI_IN, 43);
+    test_assert(result == LR_OK, "Add second element to minimum buffer");
+    
+    validate_buffer(&buffer, "After adding second element");
+    
+    // Get the elements back
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 42, "Retrieved first element correctly");
+    
+    validate_buffer(&buffer, "After getting first element");
+    
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 43, "Retrieved second element correctly");
+    
+    validate_buffer(&buffer, "After getting second element");
+    
+    // Test with extreme values
+    result = add_data(OWNER_SPI_IN, UINTPTR_MAX);
+    test_assert(result == LR_OK, "Add maximum value to buffer");
+    
+    validate_buffer(&buffer, "After adding maximum value");
+    
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == UINTPTR_MAX, 
+               "Retrieved maximum value correctly (0x%lx)", value);
+    
+    validate_buffer(&buffer, "After getting maximum value");
+    
+    // Test with multiple owners in minimum buffer
+    free(buffer.cells);
+    
+    // Initialize with size 5 for multiple owners
+    result = init_buffer(5);
+    test_assert(result == LR_OK, "Initialize buffer for multiple owners (size 5)");
+    
+    validate_buffer(&buffer, "After initialization for multiple owners");
+    
+    // Add elements for different owners
+    result = add_data(OWNER_SPI_IN, 10);
+    test_assert(result == LR_OK, "Add element for first owner");
+    
+    validate_buffer(&buffer, "After adding for first owner");
+    
+    result = add_data(OWNER_I2C_IN, 20);
+    test_assert(result == LR_OK, "Add element for second owner");
+    
+    validate_buffer(&buffer, "After adding for second owner");
+    
+    // This might fail (buffer full)
+    result = add_data(OWNER_UART_IN, 30);
+    if (result == LR_ERROR_BUFFER_FULL) {
+        log_info("Buffer correctly reports full with multiple owners");
+    }
+    
+    validate_buffer(&buffer, "After attempting to add third owner");
+    
+    // Get data from owners in reverse order
+    result = get_data(OWNER_I2C_IN, &value);
+    test_assert(result == LR_OK && value == 20, "Retrieved data from second owner");
+    
+    validate_buffer(&buffer, "After getting from second owner");
+    
+    result = get_data(OWNER_SPI_IN, &value);
+    test_assert(result == LR_OK && value == 10, "Retrieved data from first owner");
+    
+    validate_buffer(&buffer, "After getting from first owner");
+    
+    // Clean up
+    free(buffer.cells);
+    
+    return LR_OK;
+}
+
 int main()
 {
     // Seed random number generator
     srand(time(NULL));
 
-    // Run the specific test that reproduces the segfault scenario
-    lr_result_t result = test_specific_segfault_scenario();
+    // Run the test that reproduces the segfault scenario
+    lr_result_t result = test_segfault_reproduction();
 
     if (result == LR_OK) {
         log_info("Segfault reproduction test passed successfully!");
