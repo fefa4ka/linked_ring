@@ -755,6 +755,99 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
      unlock_and_return(lr, LR_OK);
  }
 
+/**
+ * Add a new element to the tail of the linked ring buffer and assign an owner.
+ *
+ * @param lr: pointer to the linked ring structure
+ * @param data: the data to be added to the buffer
+ * @param owner_ptr: pointer to store the assigned owner ID
+ *
+ * @return LR_OK: if the element was successfully added
+ *         LR_ERROR_BUFFER_FULL: if the buffer is full and the element could not be added
+ *         LR_ERROR_NOMEMORY: if the buffer or owner_ptr is NULL
+ */
+lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t *owner_ptr)
+{
+    static lr_owner_t next_owner_id = 1;
+    lr_result_t result;
+    struct lr_cell *cell;
+    struct lr_cell *owner_cell;
+    struct lr_cell *tail;
+    
+    if (lr == NULL || owner_ptr == NULL) {
+        return LR_ERROR_NOMEMORY;
+    }
+    
+    lock(lr);
+    
+    /* Check if we have space to add a new element */
+    if (lr->write == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+    }
+    
+    /* Generate a new owner ID if not already assigned */
+    if (*owner_ptr == 0) {
+        *owner_ptr = next_owner_id++;
+    }
+    
+    /* Find or create owner cell */
+    owner_cell = lr_owner_find(lr, *owner_ptr);
+    if (owner_cell == NULL) {
+        /* Create a new owner */
+        owner_cell = lr_owner_get(lr, *owner_ptr);
+        if (owner_cell == NULL) {
+            unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+        }
+    }
+    
+    /* Get the tail for this owner */
+    tail = lr_owner_tail(owner_cell);
+    
+    /* Allocate a cell for the new data */
+    cell = lr->write;
+    
+    /* Update write pointer to next available cell */
+    lr->write = lr->write->next;
+    
+    /* Store the data */
+    cell->data = data;
+    
+    if (tail) {
+        /* If owner already exists, insert after tail while preserving the circular structure */
+        cell->next = tail->next;
+        tail->next = cell;
+    } else {
+        /* If this is a new owner, we need to set up the circular structure */
+        struct lr_cell *prev_owner;
+        struct lr_cell *last_cell = lr_last_cell(lr);
+        
+        if (owner_cell < last_cell) {
+            /* Find a valid previous owner with a next pointer */
+            prev_owner = owner_cell + 1;
+            while (prev_owner->next == NULL && prev_owner < last_cell) {
+                prev_owner += 1;
+            }
+            
+            if (prev_owner->next != NULL) {
+                /* Insert into the existing circular list */
+                cell->next = prev_owner->next->next;
+                prev_owner->next->next = cell;
+            } else {
+                /* If no valid previous owner found, create a self-referential loop */
+                cell->next = cell;
+            }
+        } else {
+            /* If first owner, create a self-referential loop */
+            cell->next = cell;
+        }
+    }
+    
+    /* Update owner's tail pointer to the new cell */
+    owner_cell->next = cell;
+    
+    unlock_and_return(lr, LR_OK);
+}
+
 lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
 {
     struct lr_cell *head;
