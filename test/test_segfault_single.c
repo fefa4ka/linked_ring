@@ -411,7 +411,7 @@ lr_result_t test_specific_segfault_scenario()
 void print_stats()
 {
     printf("\n┌─────────────────────────────────────────────────┐\n");
-    printf("│           \033[1mBuffer Test Statistics\033[0m              │\n");
+    printf("│           \033[1mBuffer Test Statistics\033[0m               │\n");
     printf("├─────────────────────────┬───────────────────────┤\n");
     printf("│ Operations              │ Count                 │\n");
     printf("├─────────────────────────┼───────────────────────┤\n");
