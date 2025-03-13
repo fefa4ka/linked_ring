@@ -91,13 +91,10 @@ lr_result_t test_push_pop_basic()
     result = lr_put(&buffer, 10, 1);  // Add first element with put
     test_assert(result == LR_OK, "Put first element should succeed");
     
-    struct lr_cell *owner_cell = lr_owner_find(&buffer, 1);
-    test_assert(owner_cell != NULL, "Owner cell should exist");
-    
-    result = lr_push(&buffer, 20, owner_cell->next);  // Push to tail
+    result = lr_push(&buffer, 20, 1);  // Push to tail
     test_assert(result == LR_OK, "Push to tail should succeed");
     
-    result = lr_push(&buffer, 30, owner_cell->next);  // Push another to tail
+    result = lr_push(&buffer, 30, 1);  // Push another to tail
     test_assert(result == LR_OK, "Push another element should succeed");
     
     /* Verify elements with get and pop */
@@ -143,20 +140,14 @@ lr_result_t test_push_pop_multiple_owners()
     result = lr_put(&buffer, 10, 1);
     test_assert(result == LR_OK, "Put for owner 1 should succeed");
     
-    struct lr_cell *owner1_cell = lr_owner_find(&buffer, 1);
-    test_assert(owner1_cell != NULL, "Owner 1 cell should exist");
-    
-    result = lr_push(&buffer, 20, owner1_cell->next);
+    result = lr_push(&buffer, 20, 1);
     test_assert(result == LR_OK, "Push for owner 1 should succeed");
     
     /* Add elements for owner 2 */
     result = lr_put(&buffer, 100, 2);
     test_assert(result == LR_OK, "Put for owner 2 should succeed");
     
-    struct lr_cell *owner2_cell = lr_owner_find(&buffer, 2);
-    test_assert(owner2_cell != NULL, "Owner 2 cell should exist");
-    
-    result = lr_push(&buffer, 200, owner2_cell->next);
+    result = lr_push(&buffer, 200, 2);
     test_assert(result == LR_OK, "Push for owner 2 should succeed");
     
     /* Verify elements with pop for each owner */
@@ -206,10 +197,7 @@ lr_result_t test_push_pop_mixed_operations()
     test_assert(result == LR_OK, "Put second element should succeed");
     
     /* Add elements with push */
-    struct lr_cell *owner_cell = lr_owner_find(&buffer, 1);
-    test_assert(owner_cell != NULL, "Owner cell should exist");
-    
-    result = lr_push(&buffer, 30, owner_cell->next);
+    result = lr_push(&buffer, 30, 1);
     test_assert(result == LR_OK, "Push to tail should succeed");
     
     /* Verify order with get and pop */
@@ -225,8 +213,7 @@ lr_result_t test_push_pop_mixed_operations()
     result = lr_put(&buffer, 40, 1);
     test_assert(result == LR_OK, "Put after pop should succeed");
     
-    owner_cell = lr_owner_find(&buffer, 1);
-    result = lr_push(&buffer, 50, owner_cell->next);
+    result = lr_push(&buffer, 50, 1);
     test_assert(result == LR_OK, "Push after put should succeed");
     
     /* Verify final order */
@@ -268,8 +255,8 @@ lr_result_t test_push_pop_edge_cases()
     test_assert(result == LR_ERROR_BUFFER_EMPTY, 
                 "Pop on empty buffer should return BUFFER_EMPTY");
     
-    /* Test push with invalid needle */
-    result = lr_push(&buffer, 10, NULL);
+    /* Test push with invalid owner */
+    result = lr_push(&buffer, 10, 0);
     test_assert(result != LR_OK, 
                 "Push with NULL needle should return error");
     
@@ -278,17 +265,14 @@ lr_result_t test_push_pop_edge_cases()
     result = lr_put(&buffer, 10, 1);
     test_assert(result == LR_OK, "Put first element should succeed");
     
-    struct lr_cell *owner_cell = lr_owner_find(&buffer, 1);
-    test_assert(owner_cell != NULL, "Owner cell should exist");
-    
     /* Fill buffer to capacity */
     for (int i = 0; i < size - 2; i++) {  // -2 for owner cell and first element
-        result = lr_push(&buffer, 20 + i, owner_cell->next);
+        result = lr_push(&buffer, 20 + i, 1);
         test_assert(result == LR_OK, "Push %d should succeed", i);
     }
     
     /* Verify buffer is full */
-    result = lr_push(&buffer, 99, owner_cell->next);
+    result = lr_push(&buffer, 99, 1);
     test_assert(result == LR_ERROR_BUFFER_FULL, 
                 "Push to full buffer should return BUFFER_FULL");
     

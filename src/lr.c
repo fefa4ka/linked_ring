@@ -766,15 +766,13 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
  *         LR_ERROR_BUFFER_FULL: if the buffer is full and the element could not be added
  *         LR_ERROR_NOMEMORY: if the buffer or owner_ptr is NULL
  */
-lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t *owner_ptr)
+lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t owner)
 {
-    static lr_owner_t next_owner_id = 1;
-    lr_result_t result;
+    struct lr_cell *tail;
     struct lr_cell *cell;
     struct lr_cell *owner_cell;
-    struct lr_cell *tail;
-    
-    if (lr == NULL || owner_ptr == NULL) {
+
+    if (lr == NULL) {
         return LR_ERROR_NOMEMORY;
     }
     
@@ -785,19 +783,10 @@ lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t *owner_pt
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
     
-    /* Generate a new owner ID if not already assigned */
-    if (*owner_ptr == 0) {
-        *owner_ptr = next_owner_id++;
-    }
-    
     /* Find or create owner cell */
-    owner_cell = lr_owner_find(lr, *owner_ptr);
+    owner_cell = lr_owner_get(lr, owner);
     if (owner_cell == NULL) {
-        /* Create a new owner */
-        owner_cell = lr_owner_get(lr, *owner_ptr);
-        if (owner_cell == NULL) {
-            unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-        }
+        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
     
     /* Get the tail for this owner */

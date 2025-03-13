@@ -91,7 +91,7 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
 /* Insert a new element to head of the linked ring buffer. */
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 /* Insert a new element to the tail of the linked ring buffer. */
-lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t *owner);
+lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 /* Insert a new element to the specified index of the linked ring buffer. */
 lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_owner_t owner,
                       size_t index);
