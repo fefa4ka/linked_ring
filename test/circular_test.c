@@ -40,17 +40,27 @@ lr_result_t verify_circular_structure(struct linked_ring *lr, lr_owner_t owner) 
     size_t count = 0;
     size_t expected_count = lr_count_owned(lr, owner);
     
+    /* Print detailed debug information */
+    log_info("Verifying circular structure for owner %lu", owner);
+    log_info("Owner cell: %p, Head: %p, Tail: %p, Tail->next: %p", 
+             owner_cell, head, tail, tail->next);
+    log_info("Expected count: %zu", expected_count);
+    
     /* Follow the links and count elements */
+    printf("Element chain: ");
     do {
+        printf("%p -> ", current);
         count++;
         current = current->next;
         
         /* Detect infinite loops */
         if (count > lr->size) {
+            printf("LOOP!\n");
             log_error("Circular structure broken - infinite loop detected");
             return LR_ERROR_UNKNOWN;
         }
     } while (current != head && count < expected_count);
+    printf("%p (should be head)\n", current);
     
     /* Verify we've seen all elements */
     if (count != expected_count) {
@@ -66,16 +76,19 @@ lr_result_t verify_circular_structure(struct linked_ring *lr, lr_owner_t owner) 
     }
     
     if (current != tail) {
-        log_error("Tail pointer is incorrect");
+        log_error("Tail pointer is incorrect - expected %p, got %p", 
+                  tail, current);
         return LR_ERROR_UNKNOWN;
     }
     
     /* Verify the circular nature - tail's next should point to head */
     if (tail->next != head) {
-        log_error("Circular structure broken - tail does not point to head");
+        log_error("Circular structure broken - tail->next (%p) does not point to head (%p)",
+                  tail->next, head);
         return LR_ERROR_UNKNOWN;
     }
     
+    log_ok("Circular structure verified successfully");
     return LR_OK;
 }
 
@@ -220,27 +233,60 @@ lr_result_t test_multiple_owner_circularity() {
     result = lr_init(&buffer, size, cells);
     test_assert(result == LR_OK, "Buffer initialization should succeed");
     
-    /* Add data for different owners */
-    for (int i = 0; i < 3; i++) {
+    /* Add data for different owners one at a time and verify after each */
+    result = lr_put(&buffer, 10, 1);
+    test_assert(result == LR_OK, "Put for owner 1 should succeed");
+    result = verify_circular_structure(&buffer, 1);
+    test_assert(result == LR_OK, "Circular structure for owner 1 should be intact after first put");
+    
+    result = lr_put(&buffer, 15, 2);
+    test_assert(result == LR_OK, "Put for owner 2 should succeed");
+    result = verify_circular_structure(&buffer, 2);
+    test_assert(result == LR_OK, "Circular structure for owner 2 should be intact after first put");
+    
+    result = lr_put(&buffer, 19, 3);
+    test_assert(result == LR_OK, "Put for owner 3 should succeed");
+    
+    /* Debug the circular structure for owner 3 */
+    log_info("Detailed debug for owner 3 after first put:");
+    lr_debug_circular_structure(&buffer, 3);
+    
+    result = verify_circular_structure(&buffer, 3);
+    test_assert(result == LR_OK, "Circular structure for owner 3 should be intact after first put");
+    
+    /* Continue adding more data */
+    for (int i = 1; i < 3; i++) {
         result = lr_put(&buffer, i * 10, 1);
         test_assert(result == LR_OK, "Put for owner 1 should succeed");
+        result = verify_circular_structure(&buffer, 1);
+        test_assert(result == LR_OK, "Circular structure for owner 1 should be intact");
         
         result = lr_put(&buffer, i * 10 + 5, 2);
         test_assert(result == LR_OK, "Put for owner 2 should succeed");
+        result = verify_circular_structure(&buffer, 2);
+        test_assert(result == LR_OK, "Circular structure for owner 2 should be intact");
         
         result = lr_put(&buffer, i * 10 + 9, 3);
         test_assert(result == LR_OK, "Put for owner 3 should succeed");
+        
+        /* Debug the circular structure for owner 3 */
+        log_info("Detailed debug for owner 3 after put %d:", i+1);
+        lr_debug_circular_structure(&buffer, 3);
+        
+        result = verify_circular_structure(&buffer, 3);
+        test_assert(result == LR_OK, "Circular structure for owner 3 should be intact");
     }
     
-    /* Verify circular structure for each owner */
+    /* Final verification for all owners */
+    log_info("Final verification for all owners:");
     result = verify_circular_structure(&buffer, 1);
-    test_assert(result == LR_OK, "Circular structure for owner 1 should be intact");
+    test_assert(result == LR_OK, "Final circular structure for owner 1 should be intact");
     
     result = verify_circular_structure(&buffer, 2);
-    test_assert(result == LR_OK, "Circular structure for owner 2 should be intact");
+    test_assert(result == LR_OK, "Final circular structure for owner 2 should be intact");
     
     result = verify_circular_structure(&buffer, 3);
-    test_assert(result == LR_OK, "Circular structure for owner 3 should be intact");
+    test_assert(result == LR_OK, "Final circular structure for owner 3 should be intact");
     
     /* Clean up */
     free(cells);

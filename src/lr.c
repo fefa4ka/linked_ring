@@ -428,6 +428,7 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
     struct lr_cell *owner_cell;
     struct lr_cell *prev_owner;
     struct lr_cell *last_free;
+    struct lr_cell *head = NULL;
 
     lock(lr);
 
@@ -451,7 +452,8 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
 
     if (tail) {
         /* If owner already exists*/
-        cell->next = tail->next;
+        head = lr_owner_head(lr, owner_cell);
+        cell->next = head;  // Ensure circular structure - point to head
         tail->next = cell;
     } else {
         /* If new owner */
@@ -464,11 +466,12 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
             }
 
             if (prev_owner->next != NULL) {
-                chain                  = prev_owner->next->next;
-                cell->next             = chain;
+                chain = prev_owner->next->next;
+                cell->next = chain;
                 prev_owner->next->next = cell;
             
-                // Ensure the owner cell points to the new cell (tail)
+                // Create circular structure - first element points to itself initially
+                cell->next = cell;
                 owner_cell->next = cell;
             } else {
                 /* If no valid previous owner found, create a self-referential
@@ -484,6 +487,18 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
     }
 
     owner_cell->next = cell;
+
+    // Debug verification of circular structure
+    #ifdef DEBUG
+    if (tail) {
+        struct lr_cell *head = lr_owner_head(lr, owner_cell);
+        if (cell->next != head) {
+            printf("WARNING: Circular structure broken after put for owner %lu\n", owner);
+            printf("New cell %p should point to head %p but points to %p\n", 
+                   cell, head, cell->next);
+        }
+    }
+    #endif
 
     unlock_and_return(lr, LR_OK);
 }
@@ -994,6 +1009,58 @@ lr_result_t lr_print(struct linked_ring *lr)
     unlock_and_return(lr, LR_OK);
 }
 
+
+/* Debug function to visualize circular structure for a specific owner */
+lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner) {
+    struct lr_cell *owner_cell = lr_owner_find(lr, owner);
+    if (owner_cell == NULL) {
+        printf("\033[31mERROR: Owner %lu not found in buffer\033[0m\n", owner);
+        return LR_ERROR_UNKNOWN;
+    }
+    
+    struct lr_cell *head = lr_owner_head(lr, owner_cell);
+    struct lr_cell *tail = lr_owner_tail(owner_cell);
+    struct lr_cell *current = head;
+    size_t count = 0;
+    
+    printf("\n\033[1;36m=== Circular Structure Debug for Owner %lu ===\033[0m\n", owner);
+    printf("Owner cell address: %p, data: %lu\n", owner_cell, owner_cell->data);
+    printf("Head address: %p\n", head);
+    printf("Tail address: %p\n", tail);
+    printf("Tail->next address: %p\n", tail->next);
+    
+    printf("\n\033[1mTracing circular path:\033[0m\n");
+    printf("┌───────┬─────────┬────────────┬────────────┐\n");
+    printf("│ Index │ Address │ Data Value │ Next Addr  │\n");
+    printf("├───────┼─────────┼────────────┼────────────┤\n");
+    
+    do {
+        printf("│ %5zu │ %p │ %10lu │ %p │\n", 
+               count, current, current->data, current->next);
+        current = current->next;
+        count++;
+        
+        /* Safety check to prevent infinite loops during debugging */
+        if (count > lr->size) {
+            printf("└───────┴─────────┴────────────┴────────────┘\n");
+            printf("\033[31mWARNING: Possible infinite loop detected after %zu elements\033[0m\n", count);
+            return LR_ERROR_UNKNOWN;
+        }
+    } while (current != head && count < lr_count_owned(lr, owner));
+    
+    printf("└───────┴─────────┴────────────┴────────────┘\n");
+    
+    /* Verify circular structure */
+    if (tail->next != head) {
+        printf("\033[31mERROR: Circular structure broken!\033[0m\n");
+        printf("Tail->next (%p) does not point to head (%p)\n", tail->next, head);
+        return LR_ERROR_UNKNOWN;
+    } else {
+        printf("\033[32mCircular structure intact: tail->next correctly points to head\033[0m\n");
+    }
+    
+    return LR_OK;
+}
 
 lr_result_t lr_dump(struct linked_ring *lr)
 {
