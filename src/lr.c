@@ -145,19 +145,31 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
 {
     struct lr_cell *head;
     struct lr_cell *prev_owner;
+    struct lr_cell *last_cell = lr_last_cell(lr);
 
-    if (owner_cell == lr_last_cell(lr)) {
+    if (owner_cell == last_cell) {
         /* If the provided owner is first, then last added owner is used
          * to link with owner_cell head
          */
-        head = lr->owners->next->next;
+        if (lr->owners != NULL && lr->owners->next != NULL) {
+            head = lr->owners->next->next;
+        } else {
+            /* No valid head found */
+            return NULL;
+        }
     } else {
         /* For any other cell, the prev owner is used for head linkage */
         prev_owner = owner_cell + 1; /* Owners stored in reverse order */
 
-        while (prev_owner->next == NULL) {
+        while (prev_owner->next == NULL && prev_owner < last_cell) {
             prev_owner += 1;
         }
+        
+        if (prev_owner->next == NULL) {
+            /* No valid head found */
+            return NULL;
+        }
+        
         head = prev_owner->next->next;
     }
 
@@ -428,32 +440,41 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
     struct lr_cell *owner_cell;
     struct lr_cell *prev_owner;
     struct lr_cell *last_free;
-    struct lr_cell *head = NULL;
+
+    if (lr == NULL) {
+        return LR_ERROR_NOMEMORY;
+    }
 
     lock(lr);
 
-    owner_cell = lr_owner_find(lr, owner);
-
+    /* Check if we have space to add a new element */
     if (lr->write == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
 
+    /* Find or create owner cell */
+    owner_cell = lr_owner_find(lr, owner);
     owner_cell = lr_owner_get(lr, owner);
 
     if (owner_cell == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
     }
+    
+    /* Get the tail for this owner */
     tail = lr_owner_tail(owner_cell);
 
-    cell      = lr->write;
+    /* Allocate a cell for the new data */
+    cell = lr->write;
+    
+    /* Update write pointer to next available cell */
     lr->write = lr->write->next;
 
+    /* Store the data */
     cell->data = data;
 
     if (tail) {
-        /* If owner already exists*/
-        head = lr_owner_head(lr, owner_cell);
-        cell->next = head;  // Ensure circular structure - point to head
+        /* If owner already exists, insert after tail while preserving the circular structure */
+        cell->next = tail->next;
         tail->next = cell;
     } else {
         /* If new owner */
@@ -466,35 +487,30 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
             }
 
             if (prev_owner->next != NULL) {
+                /* Insert into the existing circular list */
                 chain = prev_owner->next->next;
                 cell->next = chain;
                 prev_owner->next->next = cell;
-            
-                // Create circular structure - first element points to itself initially
-                cell->next = cell;
-                owner_cell->next = cell;
             } else {
-                /* If no valid previous owner found, create a self-referential
-                 * loop */
+                /* If no valid previous owner found, create a self-referential loop */
                 cell->next = cell;
-                owner_cell->next = cell;
             }
         } else {
-            /* If first owner */
+            /* If first owner, create a self-referential loop */
             cell->next = cell;
-            owner_cell->next = cell;
         }
     }
 
+    /* Update owner's tail pointer to the new cell */
     owner_cell->next = cell;
 
     // Debug verification of circular structure
-    #ifdef DEBUG
+    #if 1
     if (tail) {
         struct lr_cell *head = lr_owner_head(lr, owner_cell);
         if (cell->next != head) {
             printf("WARNING: Circular structure broken after put for owner %lu\n", owner);
-            printf("New cell %p should point to head %p but points to %p\n", 
+            printf("New cell %p should point to head %p but points to %p\n",
                    cell, head, cell->next);
         }
     }
@@ -690,38 +706,58 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
 
     lock(lr);
 
+    /* Find the owner cell */
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
+    /* Find the previous owner to get the head of our list */
     last_cell = lr_last_cell(lr);
     if (owner_cell == last_cell) {
         prev_owner = lr->owners;
     } else {
         prev_owner = owner_cell + 1;
     }
-    while (prev_owner->next == NULL) {
+    
+    /* Find a valid previous owner with a next pointer */
+    while (prev_owner->next == NULL && prev_owner < last_cell) {
         prev_owner += 1;
     }
+    
+    /* If we couldn't find a valid previous owner, return empty */
+    if (prev_owner->next == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
 
-    head                   = prev_owner->next->next;
+    /* Get the head of the list and update the circular structure */
+    head = prev_owner->next->next;
     prev_owner->next->next = head->next;
 
+    /* Extract the data */
     *data = head->data;
-    tail  = lr_owner_tail(owner_cell);
+    
+    /* Get the tail for this owner */
+    tail = lr_owner_tail(owner_cell);
+    
     if (head == tail) {
-        /* If last cell for owner */
-        /* delete and shorten the list, put a new link to lr->owners */
+        /* If this was the last cell for this owner */
+        /* Delete and shorten the list, put a new link to lr->owners */
         for (struct lr_cell *owner_swap = owner_cell; owner_swap > lr->owners;
              owner_swap--) {
             struct lr_cell *next_owner = owner_swap - 1;
-            *owner_swap                = *next_owner;
+            *owner_swap = *next_owner;
         }
 
-        lr->owners->next = lr->write;
-        lr->write        = lr->owners;
+        /* Return the owner cell to the free list */
+        if (lr->write == NULL) {
+            lr->write = lr->owners;
+        } else {
+            lr->owners->next = lr->write;
+            lr->write = lr->owners;
+        }
 
+        /* Update owners pointer */
         if (lr->owners == last_cell) {
             lr->owners = NULL;
         } else {
@@ -729,8 +765,9 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner)
         }
     }
 
+    /* Return the cell to the free list */
     head->next = lr->write;
-    lr->write  = head;
+    lr->write = head;
 
     unlock_and_return(lr, LR_OK);
 }
@@ -822,11 +859,13 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
 
     lock(lr);
 
+    /* Find the owner cell */
     owner_cell = lr_owner_find(lr, owner);
     if (owner_cell == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
+    /* Find the previous owner to get the head of our list */
     last_cell = lr_last_cell(lr);
     if (owner_cell == last_cell) {
         prev_owner = lr->owners;
@@ -834,6 +873,7 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         prev_owner = owner_cell + 1;
     }
 
+    /* Find a valid previous owner with a next pointer */
     while (prev_owner->next == NULL && prev_owner < last_cell) {
         prev_owner += 1;
     }
@@ -842,8 +882,14 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
+    /* Get the head and tail of the list */
     head = prev_owner->next->next;
     tail = lr_owner_tail(owner_cell);
+    
+    /* Validate head and tail */
+    if (head == NULL || tail == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
 
     // Handle case where there's only one element for this owner
     if (head == tail) {
@@ -858,18 +904,27 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
                 *owner_swap                = *next_owner;
             }
 
-            if (prev_owner != owner_cell)
+            /* Update the circular structure */
+            if (prev_owner != owner_cell && prev_owner->next != NULL) {
                 prev_owner->next->next = tail->next;
+            }
 
-            lr->owners->next = lr->write;
-            lr->write        = lr->owners;
+            /* Return the owner cell to the free list */
+            if (lr->write == NULL) {
+                lr->write = lr->owners;
+            } else {
+                lr->owners->next = lr->write;
+                lr->write = lr->owners;
+            }
 
+            /* Update owners pointer */
             if (lr->owners == last_cell) {
                 lr->owners = NULL;
             } else {
                 lr->owners += 1;
             }
 
+            /* Return the cell to the free list */
             head->next = lr->write;
             lr->write  = head;
 
@@ -881,20 +936,24 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
 
     // Handle index 0 specially
     if (index == 0) {
-        selected               = head;
-        *data                  = selected->data;
-        prev_owner->next->next = selected->next;
+        selected = head;
+        *data = selected->data;
+        
+        /* Update the circular structure */
+        if (prev_owner->next != NULL) {
+            prev_owner->next->next = selected->next;
+        }
 
         if (selected == tail) {
             owner_cell->next = NULL;
         }
     } else {
         // Find the element at the specified index
-        needle       = head;
+        needle = head;
         needle_index = 0;
 
         // Find the element before the one we want to pull
-        while (needle_index < index - 1 && needle->next != tail) {
+        while (needle_index < index - 1 && needle->next != tail && needle->next != head) {
             needle = needle->next;
             needle_index++;
         }
@@ -905,7 +964,7 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
         }
 
         selected = needle->next;
-        *data    = selected->data;
+        *data = selected->data;
 
         // Update the linked list to skip the pulled element
         needle->next = selected->next;
@@ -918,7 +977,7 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner,
 
     // Return the cell to the free list
     selected->next = lr->write;
-    lr->write      = selected;
+    lr->write = selected;
 
     unlock_and_return(lr, LR_OK);
 }
@@ -1010,58 +1069,6 @@ lr_result_t lr_print(struct linked_ring *lr)
 }
 
 
-/* Debug function to visualize circular structure for a specific owner */
-lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner) {
-    struct lr_cell *owner_cell = lr_owner_find(lr, owner);
-    if (owner_cell == NULL) {
-        printf("\033[31mERROR: Owner %lu not found in buffer\033[0m\n", owner);
-        return LR_ERROR_UNKNOWN;
-    }
-    
-    struct lr_cell *head = lr_owner_head(lr, owner_cell);
-    struct lr_cell *tail = lr_owner_tail(owner_cell);
-    struct lr_cell *current = head;
-    size_t count = 0;
-    
-    printf("\n\033[1;36m=== Circular Structure Debug for Owner %lu ===\033[0m\n", owner);
-    printf("Owner cell address: %p, data: %lu\n", owner_cell, owner_cell->data);
-    printf("Head address: %p\n", head);
-    printf("Tail address: %p\n", tail);
-    printf("Tail->next address: %p\n", tail->next);
-    
-    printf("\n\033[1mTracing circular path:\033[0m\n");
-    printf("┌───────┬─────────┬────────────┬────────────┐\n");
-    printf("│ Index │ Address │ Data Value │ Next Addr  │\n");
-    printf("├───────┼─────────┼────────────┼────────────┤\n");
-    
-    do {
-        printf("│ %5zu │ %p │ %10lu │ %p │\n", 
-               count, current, current->data, current->next);
-        current = current->next;
-        count++;
-        
-        /* Safety check to prevent infinite loops during debugging */
-        if (count > lr->size) {
-            printf("└───────┴─────────┴────────────┴────────────┘\n");
-            printf("\033[31mWARNING: Possible infinite loop detected after %zu elements\033[0m\n", count);
-            return LR_ERROR_UNKNOWN;
-        }
-    } while (current != head && count < lr_count_owned(lr, owner));
-    
-    printf("└───────┴─────────┴────────────┴────────────┘\n");
-    
-    /* Verify circular structure */
-    if (tail->next != head) {
-        printf("\033[31mERROR: Circular structure broken!\033[0m\n");
-        printf("Tail->next (%p) does not point to head (%p)\n", tail->next, head);
-        return LR_ERROR_UNKNOWN;
-    } else {
-        printf("\033[32mCircular structure intact: tail->next correctly points to head\033[0m\n");
-    }
-    
-    return LR_OK;
-}
-
 lr_result_t lr_dump(struct linked_ring *lr)
 {
     struct lr_cell *needle;
@@ -1113,4 +1120,56 @@ lr_result_t lr_dump(struct linked_ring *lr)
     lr_print(lr);
 
     unlock_and_return(lr, LR_OK);
+}
+
+/* Debug function to visualize circular structure for a specific owner */
+lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner) {
+    struct lr_cell *owner_cell = lr_owner_find(lr, owner);
+    if (owner_cell == NULL) {
+        printf("\033[31mERROR: Owner %lu not found in buffer\033[0m\n", owner);
+        return LR_ERROR_UNKNOWN;
+    }
+
+    struct lr_cell *head = lr_owner_head(lr, owner_cell);
+    struct lr_cell *tail = lr_owner_tail(owner_cell);
+    struct lr_cell *current = head;
+    size_t count = 0;
+
+    printf("\n\033[1;36m=== Circular Structure Debug for Owner %lu ===\033[0m\n", owner);
+    printf("Owner cell address: %p, data: %lu\n", owner_cell, owner_cell->data);
+    printf("Head address: %p\n", head);
+    printf("Tail address: %p\n", tail);
+    printf("Tail->next address: %p\n", tail->next);
+
+    printf("\n\033[1mTracing circular path:\033[0m\n");
+    printf("┌───────┬─────────┬────────────┬────────────┐\n");
+    printf("│ Index │ Address │ Data Value │ Next Addr  │\n");
+    printf("├───────┼─────────┼────────────┼────────────┤\n");
+
+    do {
+        printf("│ %5zu │ %p │ %10lu │ %p │\n",
+               count, current, current->data, current->next);
+        current = current->next;
+        count++;
+
+        /* Safety check to prevent infinite loops during debugging */
+        if (count > lr->size) {
+            printf("└───────┴─────────┴────────────┴────────────┘\n");
+            printf("\033[31mWARNING: Possible infinite loop detected after %zu elements\033[0m\n", count);
+            return LR_ERROR_UNKNOWN;
+        }
+    } while (current != head && count < lr_count_owned(lr, owner));
+
+    printf("└───────┴─────────┴────────────┴────────────┘\n");
+
+    /* Verify circular structure */
+    if (tail->next != head) {
+        printf("\033[31mERROR: Circular structure broken!\033[0m\n");
+        printf("Tail->next (%p) does not point to head (%p)\n", tail->next, head);
+        return LR_ERROR_UNKNOWN;
+    } else {
+        printf("\033[32mCircular structure intact: tail->next correctly points to head\033[0m\n");
+    }
+
+    return LR_OK;
 }
