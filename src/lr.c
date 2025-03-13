@@ -420,67 +420,73 @@ void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr)
  * be added
  */
 
- lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
- {
-     struct lr_cell *tail;
-     struct lr_cell *cell;
-     struct lr_cell *chain;
-     struct lr_cell *owner_cell;
-     struct lr_cell *prev_owner;
-     struct lr_cell *last_free;
+lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_data_t owner)
+{
+    struct lr_cell *tail;
+    struct lr_cell *cell;
+    struct lr_cell *chain;
+    struct lr_cell *owner_cell;
+    struct lr_cell *prev_owner;
+    struct lr_cell *last_cell;
 
-     lock(lr);
+    lock(lr);
 
-     owner_cell = lr_owner_find(lr, owner);
+    // Check if buffer is full before any operations
+    if (lr->write == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+    }
 
-     if (lr->write == NULL) {
-         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-     }
+    // Get the owner cell (find existing or allocate new)
+    owner_cell = lr_owner_get(lr, owner);
+    if (owner_cell == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
+    }
 
-     owner_cell = lr_owner_get(lr, owner);
+    // Get the tail for this owner
+    tail = lr_owner_tail(owner_cell);
 
-     if (owner_cell == NULL) {
-         unlock_and_return(lr, LR_ERROR_BUFFER_FULL);
-     }
-     tail = lr_owner_tail(owner_cell);
+    // Allocate a cell for the new data
+    cell = lr->write;
+    lr->write = lr->write->next;
+    cell->data = data;
 
-     cell      = lr->write;
-     lr->write = lr->write->next;
+    if (tail) {
+        /* If owner already exists, insert at the end of owner's chain */
+        cell->next = tail->next;  // Connect to the next chain
+        tail->next = cell;        // Update tail to point to new cell
+    } else {
+        /* If new owner with no data yet */
+        last_cell = lr_last_cell(lr);
+        
+        if (owner_cell < last_cell) {
+            /* Find previous owner to link with */
+            prev_owner = owner_cell + 1;
 
-     cell->data = data;
+            // Find a valid previous owner
+            while (prev_owner->next == NULL && prev_owner < last_cell) {
+                prev_owner += 1;
+            }
 
-     if (tail) {
-         /* If owner already exists*/
-         cell->next = tail->next;
-         tail->next = cell;
-     } else {
-         /* If new owner */
-         if (owner_cell < lr_last_cell(lr)) {
-             /* If prev owner exists */
-             prev_owner = owner_cell + 1;
+            if (prev_owner < last_cell && prev_owner->next != NULL) {
+                // Link to the next chain through previous owner
+                chain = prev_owner->next->next;
+                cell->next = chain;
+                prev_owner->next->next = cell;
+            } else {
+                /* If no valid previous owner found, create a self-referential loop */
+                cell->next = cell;
+            }
+        } else {
+            /* If first owner in empty buffer */
+            cell->next = cell;  // Create a self-referential loop
+        }
+    }
 
-             while (prev_owner->next == NULL && prev_owner < lr_last_cell(lr)) {
-                 prev_owner += 1;
-             }
+    // Update owner to point to the new cell (which is now the tail)
+    owner_cell->next = cell;
 
-             if (prev_owner->next != NULL) {
-                 chain = prev_owner->next->next;
-                 cell->next = chain;
-                 prev_owner->next->next = cell;
-             } else {
-                 /* If no valid previous owner found, create a self-referential loop */
-                 cell->next = cell;
-             }
-         } else {
-             /* If first owner */
-             cell->next = cell;
-         }
-     }
-
-     owner_cell->next = cell;
-
-     unlock_and_return(lr, LR_OK);
- }
+    unlock_and_return(lr, LR_OK);
+}
 
 lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data,
                            struct lr_cell *needle)

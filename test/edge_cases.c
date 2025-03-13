@@ -33,6 +33,7 @@ lr_result_t test_empty_string();
 lr_result_t test_rapid_put_get();
 lr_result_t test_mixed_operations();
 lr_result_t test_boundary_indices();
+lr_result_t test_put_robustness();
 lr_result_t run_all_tests();
 
 /* Global buffer for testing */
@@ -87,6 +88,10 @@ lr_result_t run_all_tests()
         return result;
         
     result = test_boundary_indices();
+    if (result != LR_OK)
+        return result;
+    
+    result = test_put_robustness();
     if (result != LR_OK)
         return result;
     
@@ -424,6 +429,90 @@ lr_result_t test_mixed_operations()
     return LR_OK;
 }
 
+/* Test lr_put robustness */
+lr_result_t test_put_robustness()
+{
+    lr_result_t result;
+    struct lr_cell *cells;
+    lr_data_t data;
+    const unsigned int size = 8;
+    
+    log_info("Testing lr_put robustness...");
+    
+    /* Initialize buffer */
+    cells = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+    
+    /* Test case 1: Add and remove owners in specific order to test edge cases */
+    result = lr_put(&buffer, 10, 1);
+    test_assert(result == LR_OK, "Put for owner 1 should succeed");
+    
+    result = lr_put(&buffer, 20, 2);
+    test_assert(result == LR_OK, "Put for owner 2 should succeed");
+    
+    result = lr_put(&buffer, 30, 3);
+    test_assert(result == LR_OK, "Put for owner 3 should succeed");
+    
+    /* Remove middle owner's data */
+    result = lr_get(&buffer, &data, 2);
+    test_assert(result == LR_OK && data == 20, 
+                "Get for owner 2 should return 20, got %lu", data);
+    
+    /* Add data for removed owner */
+    result = lr_put(&buffer, 25, 2);
+    test_assert(result == LR_OK, "Put for previously removed owner should succeed");
+    
+    /* Verify data integrity */
+    result = lr_get(&buffer, &data, 2);
+    test_assert(result == LR_OK && data == 25, 
+                "Get for owner 2 should return 25, got %lu", data);
+    
+    /* Test case 2: Fill buffer to capacity with alternating owners */
+    /* Reset buffer */
+    free(cells);
+    cells = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+    
+    /* Fill buffer with alternating owners */
+    for (int i = 0; i < (size/2) - 1; i++) {
+        result = lr_put(&buffer, i * 10, 1);
+        test_assert(result == LR_OK, "Put for owner 1 should succeed");
+        
+        result = lr_put(&buffer, i * 10 + 5, 2);
+        test_assert(result == LR_OK, "Put for owner 2 should succeed");
+    }
+    
+    /* Verify buffer is full */
+    result = lr_put(&buffer, 99, 3);
+    test_assert(result == LR_ERROR_BUFFER_FULL, 
+                "Put to full buffer should return BUFFER_FULL");
+    
+    /* Remove all data for owner 1 */
+    while (lr_count_owned(&buffer, 1) > 0) {
+        result = lr_get(&buffer, &data, 1);
+        test_assert(result == LR_OK, "Get for owner 1 should succeed");
+    }
+    
+    /* Now we should be able to add data for a new owner */
+    result = lr_put(&buffer, 100, 3);
+    test_assert(result == LR_OK, "Put for new owner after making space should succeed");
+    
+    result = lr_put(&buffer, 110, 3);
+    test_assert(result == LR_OK, "Second put for new owner should succeed");
+    
+    /* Verify data integrity */
+    result = lr_get(&buffer, &data, 3);
+    test_assert(result == LR_OK && data == 100, 
+                "Get for owner 3 should return 100, got %lu", data);
+    
+    /* Clean up */
+    free(cells);
+    
+    return LR_OK;
+}
+
 /* Test boundary indices */
 lr_result_t test_boundary_indices()
 {
@@ -469,6 +558,30 @@ lr_result_t test_boundary_indices()
     result = lr_insert(&buffer, 99, 1, 100);
     test_assert(result == LR_OK, 
                 "Insert at invalid index should handle gracefully");
+    
+    /* Test multiple owner edge case */
+    log_info("Testing multiple owner edge cases with put...");
+    
+    /* Create a situation with multiple owners in specific order */
+    result = lr_put(&buffer, 101, 2);
+    test_assert(result == LR_OK, "Put for owner 2 should succeed");
+    
+    result = lr_put(&buffer, 102, 3);
+    test_assert(result == LR_OK, "Put for owner 3 should succeed");
+    
+    /* Remove all data for owner 2 */
+    result = lr_get(&buffer, &data, 2);
+    test_assert(result == LR_OK, "Get for owner 2 should succeed");
+    
+    /* Now add data for owner 2 again - this tests the case where
+       we have a "hole" in the owner list */
+    result = lr_put(&buffer, 201, 2);
+    test_assert(result == LR_OK, "Put for owner 2 after removal should succeed");
+    
+    /* Verify data integrity */
+    result = lr_get(&buffer, &data, 2);
+    test_assert(result == LR_OK && data == 201, 
+                "Retrieved data should be 201, got %lu", data);
     
     /* Clean up */
     free(cells);
