@@ -2,6 +2,8 @@
 
 A high-performance, thread-safe circular buffer implementation in C designed for embedded systems and other memory-constrained environments.
 
+For a detailed explanation of the implementation, see [One Size Fits All: Linked Ring Instead of a Ring Buffer](https://blog.devgenius.io/one-size-fits-all-linked-ring-instead-of-a-ring-buffer-d1d69a12bf73).
+
 ## Overview
 
 The Linked Ring Buffer provides an efficient way to manage data in a circular buffer with multiple "owners" (data sources or consumers). It's particularly useful for:
