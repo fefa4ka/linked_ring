@@ -149,37 +149,37 @@ lr_set_mutex(&buffer, &mutex_attr);
 ## API Reference
 
 ### Buffer Management
-- `lr_init(lr, size, cells)` - Initialize a new buffer
-- `lr_resize(lr, size, cells)` - Resize an existing buffer
-- `lr_set_mutex(lr, attr)` - Set mutex for thread-safe operations
+- `lr_init(lr, size, cells)` - Initialize a new buffer - O(n)
+- `lr_resize(lr, size, cells)` - Resize an existing buffer - O(n)
+- `lr_set_mutex(lr, attr)` - Set mutex for thread-safe operations - O(1)
 
 ### Data Operations (FIFO)
-- `lr_put(lr, data, owner)` - Add data to head of buffer
-- `lr_get(lr, &data, owner)` - Get data from head of buffer
-- `lr_read(lr, &data, owner)` - Read data without removing it
+- `lr_put(lr, data, owner)` - Add data to head of buffer - O(1)
+- `lr_get(lr, &data, owner)` - Get data from head of buffer - O(1)
+- `lr_read(lr, &data, owner)` - Read data without removing it - O(1)
 
 ### Data Operations (LIFO)
-- `lr_push(lr, data, owner)` - Add data to tail of buffer
-- `lr_pop(lr, &data, owner)` - Get data from tail of buffer
+- `lr_push(lr, data, owner)` - Add data to tail of buffer - O(1)
+- `lr_pop(lr, &data, owner)` - Get data from tail of buffer - O(n)
 
 ### String Operations
-- `lr_put_string(lr, data, owner)` - Add string to buffer
-- `lr_read_string(lr, data, &length, owner)` - Read string from buffer
+- `lr_put_string(lr, data, owner)` - Add string to buffer - O(m) where m is string length
+- `lr_read_string(lr, data, &length, owner)` - Read string from buffer - O(m) where m is string length
 
 ### Advanced Operations
-- `lr_insert(lr, data, owner, index)` - Insert data at specific index
-- `lr_pull(lr, &data, owner, index)` - Remove data from specific index
+- `lr_insert(lr, data, owner, index)` - Insert data at specific index - O(n)
+- `lr_pull(lr, &data, owner, index)` - Remove data from specific index - O(n)
 
 ### Owner Management
-- `lr_owner_find(lr, owner)` - Find owner cell
-- `lr_count_owned(lr, owner)` - Count elements for an owner
-- `lr_count(lr)` - Count all elements in buffer
+- `lr_owner_find(lr, owner)` - Find owner cell - O(k) where k is number of owners
+- `lr_count_owned(lr, owner)` - Count elements for an owner - O(n)
+- `lr_count(lr)` - Count all elements in buffer - O(n)
 
 ### Debugging
-- `lr_dump(lr)` - Print buffer contents
-- `lr_debug_structure_circular(lr, owner)` - Verify circular structure
-- `lr_debug_strucuture_cells(lr)` - Debug cell structure
-- `lr_debug_structure_relinked(lr)` - Debug relinked structure
+- `lr_dump(lr)` - Print buffer contents - O(n)
+- `lr_debug_structure_circular(lr, owner)` - Verify circular structure - O(n)
+- `lr_debug_strucuture_cells(lr)` - Debug cell structure - O(n)
+- `lr_debug_structure_relinked(lr)` - Debug relinked structure - O(n)
 
 ## License
 
