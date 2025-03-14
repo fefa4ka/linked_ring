@@ -20,8 +20,6 @@ The Linked Ring Buffer provides an efficient way to manage data in a circular bu
 - LIFO (Last-In-First-Out) data handling with `lr_push()` and `lr_pop()`
 - String operations for text processing
 - Buffer resizing capability
-- Comprehensive debugging tools
-- Circular structure verification
 
 ## Building
 
