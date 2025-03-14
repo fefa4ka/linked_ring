@@ -25,17 +25,16 @@
     }
 
 struct linked_ring buffer; // declare a buffer for the Linked Ring
-pthread_mutex_t pthread_mutex;
-lr_owner_t bare_metal_mutex;
+pthread_mutex_t    pthread_mutex;
+lr_owner_t         bare_metal_mutex;
 
 /**
  * Implementation of lock using the linux pthread library
-*/
+ */
 lr_result_t pthread_lock(void *state)
 {
-    pthread_mutex_t *mutex = (pthread_mutex_t *) state;
-    if (pthread_mutex_lock(mutex) == 0)
-    {
+    pthread_mutex_t *mutex = (pthread_mutex_t *)state;
+    if (pthread_mutex_lock(mutex) == 0) {
         return LR_OK;
     }
     return LR_ERROR_LOCK;
@@ -43,10 +42,10 @@ lr_result_t pthread_lock(void *state)
 
 /**
  * Implementation of unlock using the linux pthread library
-*/
+ */
 lr_result_t pthread_unlock(void *state)
 {
-    pthread_mutex_t *mutex = (pthread_mutex_t *) state;
+    pthread_mutex_t *mutex = (pthread_mutex_t *)state;
 
     pthread_mutex_unlock(mutex);
 
@@ -55,41 +54,39 @@ lr_result_t pthread_unlock(void *state)
 
 /**
  * Implementation of lock using atomics
-*/
+ */
 lr_result_t bare_metal_lock(void *state)
 {
-    lr_owner_t *mutex = (lr_owner_t*) state;
-    lr_owner_t owner;
+    lr_owner_t *mutex = (lr_owner_t *)state;
+    lr_owner_t  owner;
     __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
-    if (owner)
-    {
+    if (owner) {
         // cannot acquire a mutex that has already been acquired
         return LR_ERROR_LOCK;
     }
     lr_owner_t expected = UINTPTR_MAX;
     // Busy-wait until the mutex is not locked
-    while (!__atomic_compare_exchange_n(mutex, &expected, owner, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {}
+    while (!__atomic_compare_exchange_n(mutex, &expected, owner, false,
+                                        __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
+    }
 
     return LR_OK;
 }
 
 /**
  * Implementation of unlock using atomics
-*/
+ */
 lr_result_t bare_metal_unlock(void *state)
 {
-    lr_owner_t *mutex = (lr_owner_t *) state;
-    lr_owner_t owner;
+    lr_owner_t *mutex = (lr_owner_t *)state;
+    lr_owner_t  owner;
     __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
-    if (owner == UINTPTR_MAX)
-    {
+    if (owner == UINTPTR_MAX) {
         // cannot release a mutex which has not been acquired
         return LR_OK;
-    }
-    else if (owner)
-    {
+    } else if (owner) {
         // cannot release a mutex which has not been acquired
-        return LR_OK; 
+        return LR_OK;
     }
     lr_owner_t desired = UINTPTR_MAX;
     __atomic_store(mutex, &desired, __ATOMIC_SEQ_CST);
@@ -115,41 +112,41 @@ lr_result_t init_buffer(int buffer_size)
 
 void *put_get_data(void *data_in)
 {
-    unsigned int owner = *((unsigned int *) data_in);
-    lr_data_t data = lr_data(data_in);
+    unsigned int   owner = *((unsigned int *)data_in);
+    lr_data_t      data  = lr_data(data_in);
     enum lr_result result;
-    lr_dump(&buffer);
-    do
-    {
+    do {
         result = lr_put(&buffer, data, owner);
-        lr_dump(&buffer);
-    } while(result != LR_ERROR_BUFFER_FULL && result != LR_OK);
+		log_info("Put data %lu to owner %d", data, owner);
+    } while (result != LR_ERROR_BUFFER_FULL && result != LR_OK);
     lr_data_t read;
     result = lr_get(&buffer, &read, owner);
-    if (result != LR_OK)
-    {
+	log_info("Got data %lu from owner %d", read, owner);
+    if (result != LR_OK) {
         log_error("Error while getting data from buffer %d", result);
     }
-    if (read != data)
-    {
+    if (read != data) {
         log_error("Data does not match %lu != %lu", read, data);
         result = LR_ERROR_UNKNOWN;
     }
-    pthread_exit((void *) result);
+    pthread_exit((void *)result);
 }
 
 /** Invokes `num_threads` threads that each run `func`
  *  Returns LR_OK on success.
- *  If at least one of the threads reported an error, then this function returns the error of the thread that reported an error and that was joined last.
+ *  If at least one of the threads reported an error, then this function returns
+ * the error of the thread that reported an error and that was joined last.
  */
-lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*))
+lr_result_t test_multiple_threads_with_pthread_mutex(unsigned int num_threads,
+                                  void *(*func)(void *))
 {
     // use less cells than threads to force contention
-    unsigned int buffer_size = (num_threads > 1) ? num_threads / 2 : 1;
+    unsigned int buffer_size = (num_threads > 1) ? num_threads : 1;
     test_assert(init_buffer(buffer_size) == LR_OK, "Buffer created");
-    pthread_t threads[num_threads];
+    pthread_t    threads[num_threads];
     unsigned int owners[num_threads];
 
+    log_info("Using pthread mutex");
 
     // test using pthread lock and unlock
     pthread_mutexattr_t pthread_attr;
@@ -157,47 +154,60 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
     pthread_mutexattr_settype(&pthread_attr, PTHREAD_MUTEX_ERRORCHECK);
     pthread_mutex_init(&pthread_mutex, &pthread_attr);
     struct lr_mutex_attr attr;
-    attr.lock = pthread_lock;
+    attr.lock   = pthread_lock;
     attr.unlock = pthread_unlock;
-    attr.state = (void *) &pthread_mutex;
+    attr.state  = (void *)&pthread_mutex;
     lr_set_mutex(&buffer, &attr);
 
-    for (unsigned int i = 0; i < num_threads; i++)
-    {
+    for (unsigned int i = 0; i < num_threads; i++) {
         owners[i] = i;
-        int ret = pthread_create(&threads[i], NULL, func, (void *) &owners[i]);
+        int ret   = pthread_create(&threads[i], NULL, func, (void *)&owners[i]);
         test_assert(ret == 0, "Thread created");
     }
 
     enum lr_result result = LR_OK;
-    for (unsigned int i = 0; i < num_threads; i++)
-    {
+    for (unsigned int i = 0; i < num_threads; i++) {
         void *ret;
         pthread_join(threads[i], &ret);
-        enum lr_result ret_as_result = (enum lr_result) ret;
-        result = (ret_as_result == LR_OK) ?  result : ret_as_result;
+        enum lr_result ret_as_result = (enum lr_result)ret;
+        result = (ret_as_result == LR_OK) ? result : ret_as_result;
     }
+    return result;
+}
 
+
+lr_result_t test_multiple_threads_with_bare_metal_mutex(unsigned int num_threads,
+                                  void *(*func)(void *))
+{
+
+    // use less cells than threads to force contention
+    unsigned int buffer_size = (num_threads > 1) ? num_threads : 1;
+    test_assert(init_buffer(buffer_size) == LR_OK, "Buffer created");
+    pthread_t    threads[num_threads];
+    unsigned int owners[num_threads];
+
+    struct lr_mutex_attr attr;
+    enum lr_result result = LR_OK;
+
+    log_info("Using atomics");
 
     // test using atomics-based lock and unlock
     bare_metal_mutex = UINTPTR_MAX;
-    attr.lock = bare_metal_lock;
-    attr.unlock = bare_metal_unlock;
-    attr.state = (void *) &bare_metal_mutex;
+    attr.lock        = bare_metal_lock;
+    attr.unlock      = bare_metal_unlock;
+    attr.state       = (void *)&bare_metal_mutex;
     lr_set_mutex(&buffer, &attr);
 
 
-    for (unsigned int i = 0; i < num_threads; i++)
-    {
-        int ret = pthread_create(&threads[i], NULL, func, (void *) &owners[i]);
+    for (unsigned int i = 0; i < num_threads; i++) {
+        int ret = pthread_create(&threads[i], NULL, func, (void *)&owners[i]);
         test_assert(ret == 0, "Thread created");
     }
 
-    for (unsigned int i = 0; i < num_threads; i++)
-    {
+    for (unsigned int i = 0; i < num_threads; i++) {
         void *ret;
         pthread_join(threads[i], &ret);
-        enum lr_result ret_as_result = (enum lr_result) ret;
+        enum lr_result ret_as_result = (enum lr_result)ret;
         result = (ret_as_result == LR_OK) ? result : ret_as_result;
     }
 
@@ -207,7 +217,12 @@ lr_result_t test_multiple_threads(unsigned int num_threads, void *(*func)(void*)
 int main(int argc, char **argv)
 {
     // run the test function
-    enum lr_result result = test_multiple_threads(                          2, put_get_data);
+    enum lr_result result = test_multiple_threads_with_pthread_mutex(2, put_get_data);
+    
+    if (result == LR_OK) {
+        result = test_multiple_threads_with_bare_metal_mutex(2, put_get_data);
+    }
+
     if (result == LR_OK) {
         log_ok("All tests passed");
     } else {
