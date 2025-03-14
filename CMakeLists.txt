@@ -14,7 +14,6 @@ endif()
 # Library configuration
 add_library(lr STATIC 
     src/lr.c 
-    src/lr_file.c
 )
 target_include_directories(lr PUBLIC include)
 
