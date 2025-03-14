@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h> // For usleep
 
 
 #define log_print(type, message, ...)                                          \
@@ -58,19 +59,17 @@ lr_result_t pthread_unlock(void *state)
 lr_result_t bare_metal_lock(void *state)
 {
     lr_owner_t *mutex = (lr_owner_t *)state;
-    lr_owner_t  owner;
-    __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
-    if (owner) {
-        // cannot acquire a mutex that has already been acquired
-        return LR_ERROR_LOCK;
+    lr_owner_t expected = UINTPTR_MAX; // Unlocked state
+    lr_owner_t desired = 0;            // Locked state
+    
+    // Try to atomically change from unlocked (UINTPTR_MAX) to locked (0)
+    if (__atomic_compare_exchange_n(mutex, &expected, desired, false,
+                                   __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
+        return LR_OK;
     }
-    lr_owner_t expected = UINTPTR_MAX;
-    // Busy-wait until the mutex is not locked
-    while (!__atomic_compare_exchange_n(mutex, &expected, owner, false,
-                                        __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
-    }
-
-    return LR_OK;
+    
+    // If we couldn't acquire the lock immediately, return error
+    return LR_ERROR_LOCK;
 }
 
 /**
@@ -79,19 +78,17 @@ lr_result_t bare_metal_lock(void *state)
 lr_result_t bare_metal_unlock(void *state)
 {
     lr_owner_t *mutex = (lr_owner_t *)state;
-    lr_owner_t  owner;
-    __atomic_load(mutex, &owner, __ATOMIC_SEQ_CST);
-    if (owner == UINTPTR_MAX) {
-        // cannot release a mutex which has not been acquired
-        return LR_OK;
-    } else if (owner) {
-        // cannot release a mutex which has not been acquired
+    lr_owner_t current = 0;
+    lr_owner_t desired = UINTPTR_MAX;  // Unlocked state
+    
+    // Only unlock if we currently own the lock (value is 0)
+    if (__atomic_compare_exchange_n(mutex, &current, desired, false,
+                                   __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)) {
         return LR_OK;
     }
-    lr_owner_t desired = UINTPTR_MAX;
-    __atomic_store(mutex, &desired, __ATOMIC_SEQ_CST);
-
-    return LR_OK;
+    
+    // If we couldn't unlock (wasn't locked or locked by someone else)
+    return LR_ERROR_UNLOCK;
 }
 
 // function to initialize the linked ring buffer
@@ -115,20 +112,54 @@ void *put_get_data(void *data_in)
     unsigned int   owner = *((unsigned int *)data_in);
     lr_data_t      data  = lr_data(data_in);
     enum lr_result result;
+    int retry_count = 0;
+    const int max_retries = 5;
+    
+    // Try to put data with limited retries
     do {
         result = lr_put(&buffer, data, owner);
-		log_info("Put data %lu to owner %d", data, owner);
-    } while (result != LR_ERROR_BUFFER_FULL && result != LR_OK);
-    lr_data_t read;
-    result = lr_get(&buffer, &read, owner);
-	log_info("Got data %lu from owner %d", read, owner);
+        if (result == LR_OK) {
+            log_info("Thread %d: Put data %lu to owner %d", (int)pthread_self(), data, owner);
+            break;
+        } else if (result == LR_ERROR_LOCK) {
+            // If we couldn't get the lock, sleep a bit and retry
+            usleep(10000); // 10ms
+        }
+        retry_count++;
+    } while (result != LR_ERROR_BUFFER_FULL && retry_count < max_retries);
+    
     if (result != LR_OK) {
-        log_error("Error while getting data from buffer %d", result);
+        log_error("Thread %d: Failed to put data after %d attempts, error: %d", 
+                 (int)pthread_self(), retry_count, result);
+        pthread_exit((void *)result);
     }
-    if (read != data) {
-        log_error("Data does not match %lu != %lu", read, data);
+    
+    // Reset retry counter for get operation
+    retry_count = 0;
+    lr_data_t read;
+    
+    // Try to get data with limited retries
+    do {
+        result = lr_get(&buffer, &read, owner);
+        if (result == LR_OK) {
+            log_info("Thread %d: Got data %lu from owner %d", (int)pthread_self(), read, owner);
+            break;
+        } else if (result == LR_ERROR_LOCK) {
+            // If we couldn't get the lock, sleep a bit and retry
+            usleep(10000); // 10ms
+        }
+        retry_count++;
+    } while (retry_count < max_retries);
+    
+    if (result != LR_OK) {
+        log_error("Thread %d: Error while getting data from buffer: %d", 
+                 (int)pthread_self(), result);
+    } else if (read != data) {
+        log_error("Thread %d: Data does not match %lu != %lu", 
+                 (int)pthread_self(), read, data);
         result = LR_ERROR_UNKNOWN;
     }
+    
     pthread_exit((void *)result);
 }
 
@@ -179,7 +210,6 @@ lr_result_t test_multiple_threads_with_pthread_mutex(unsigned int num_threads,
 lr_result_t test_multiple_threads_with_bare_metal_mutex(unsigned int num_threads,
                                   void *(*func)(void *))
 {
-
     // use less cells than threads to force contention
     unsigned int buffer_size = (num_threads > 1) ? num_threads : 1;
     test_assert(init_buffer(buffer_size) == LR_OK, "Buffer created");
@@ -191,24 +221,31 @@ lr_result_t test_multiple_threads_with_bare_metal_mutex(unsigned int num_threads
 
     log_info("Using atomics");
 
-    // test using atomics-based lock and unlock
+    // Initialize mutex to unlocked state
     bare_metal_mutex = UINTPTR_MAX;
+    
+    // Set up mutex functions
     attr.lock        = bare_metal_lock;
     attr.unlock      = bare_metal_unlock;
     attr.state       = (void *)&bare_metal_mutex;
     lr_set_mutex(&buffer, &attr);
 
-
+    // Create threads
     for (unsigned int i = 0; i < num_threads; i++) {
+        owners[i] = i;
         int ret = pthread_create(&threads[i], NULL, func, (void *)&owners[i]);
-        test_assert(ret == 0, "Thread created");
+        test_assert(ret == 0, "Thread %u created", i);
     }
 
+    // Wait for all threads to complete
     for (unsigned int i = 0; i < num_threads; i++) {
         void *ret;
         pthread_join(threads[i], &ret);
         enum lr_result ret_as_result = (enum lr_result)ret;
-        result = (ret_as_result == LR_OK) ? result : ret_as_result;
+        if (ret_as_result != LR_OK) {
+            log_error("Thread %u returned error: %d", i, ret_as_result);
+            result = ret_as_result;
+        }
     }
 
     return result;
