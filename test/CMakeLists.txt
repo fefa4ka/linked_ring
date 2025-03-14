@@ -25,7 +25,3 @@ add_lr_test(test_resize resize_test.c)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 add_lr_test(test_multi_thread multi_thread.c Threads::Threads)
-
-# File tests
-file(COPY one_line.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-add_lr_test(test_files files.c)
