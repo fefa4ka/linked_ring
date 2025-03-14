@@ -151,10 +151,10 @@ lr_result_t test_resize_with_data()
 
     /* Resize buffer */
     lr_dump(&buffer);
-    lr_debug_cells_structure(&buffer);
+    lr_debug_strucuture_cells(&buffer);
     new_cells = malloc(new_size * sizeof(struct lr_cell));
     result    = lr_resize(&buffer, new_size, new_cells);
-    lr_debug_cells_structure(&buffer);
+    lr_debug_strucuture_cells(&buffer);
     test_assert(result == LR_OK, "Buffer resize should succeed");
     lr_dump(&buffer);
 
@@ -297,7 +297,7 @@ lr_result_t test_resize_larger()
     test_assert(lr_available(&buffer) > 1,
                 "Buffer should have more available space after resize");
 
-    lr_debug_cells_structure(&buffer);
+    lr_debug_strucuture_cells(&buffer);
     lr_dump(&buffer);
     /* Add more data that wouldn't fit in original buffer */
     for (int i = 4; i < 15; i++) {

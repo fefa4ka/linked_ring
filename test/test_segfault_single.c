@@ -297,9 +297,9 @@ lr_result_t add_data(lr_owner_t owner, lr_data_t value)
     
     // Debug output after put
     printf("\n\033[1;32m=== After lr_put in add_data ===\033[0m\n");
-    lr_debug_cells_structure(&buffer);
-    lr_debug_relinked_structure(&buffer);
-    lr_debug_circular_structure(&buffer, owner);
+    lr_debug_strucuture_cells(&buffer);
+    lr_debug_structure_relinked(&buffer);
+    lr_debug_structure_circular(&buffer, owner);
     
     stats.total_puts++;
     
@@ -351,12 +351,12 @@ lr_result_t get_data(lr_owner_t owner, lr_data_t *value)
     // Debug output after get
     if (result == LR_OK) {
         printf("\n\033[1;32m=== After lr_get in get_data ===\033[0m\n");
-        lr_debug_cells_structure(&buffer);
-        lr_debug_relinked_structure(&buffer);
+        lr_debug_strucuture_cells(&buffer);
+        lr_debug_structure_relinked(&buffer);
         
         // Only debug circular structure if owner still exists
         if (lr_exists(&buffer, owner)) {
-            lr_debug_circular_structure(&buffer, owner);
+            lr_debug_structure_circular(&buffer, owner);
         } else {
             printf("Owner %s no longer exists in buffer\n", owner_to_string(owner));
         }

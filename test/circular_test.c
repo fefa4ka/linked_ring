@@ -81,7 +81,7 @@ lr_result_t verify_circular_structure(struct linked_ring *lr, lr_owner_t owner) 
         return LR_ERROR_UNKNOWN;
     }
     
-    lr_debug_circular_structure(&buffer, owner);
+    lr_debug_structure_circular(&buffer, owner);
     
     /* In a single-circle design, we don't check that tail->next == head for each owner.
      * Instead, we verify that all elements form a single circular list by checking
@@ -275,7 +275,7 @@ lr_result_t test_multiple_owner_circularity() {
     
     /* Debug the circular structure for owner 3 */
     log_info("Detailed debug for owner 3 after first put:");
-    lr_debug_circular_structure(&buffer, 3);
+    lr_debug_structure_circular(&buffer, 3);
     
     result = verify_circular_structure(&buffer, 3);
     test_assert(result == LR_OK, "Circular structure for owner 3 should be intact after first put");
@@ -297,7 +297,7 @@ lr_result_t test_multiple_owner_circularity() {
         
         /* Debug the circular structure for owner 3 */
         log_info("Detailed debug for owner 3 after put %d:", i+1);
-        lr_debug_circular_structure(&buffer, 3);
+        lr_debug_structure_circular(&buffer, 3);
         
         result = verify_circular_structure(&buffer, 3);
         test_assert(result == LR_OK, "Circular structure for owner 3 should be intact");

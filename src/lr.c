@@ -1212,7 +1212,7 @@ lr_result_t lr_dump(struct linked_ring *lr)
 }
 
 /* Debug function to print the original cell structure */
-void lr_debug_cells_structure(struct linked_ring *lr)
+void lr_debug_strucuture_cells(struct linked_ring *lr)
 {
     if (lr == NULL || lr->cells == NULL) {
         printf("\033[31mERROR: Cannot debug NULL buffer or cells\033[0m\n");
@@ -1240,7 +1240,7 @@ void lr_debug_cells_structure(struct linked_ring *lr)
 }
 
 /* Debug function to visualize circular structure for a specific owner */
-lr_result_t lr_debug_circular_structure(struct linked_ring *lr,
+lr_result_t lr_debug_structure_circular(struct linked_ring *lr,
                                         lr_owner_t          owner)
 {
     struct lr_cell *owner_cell = lr_owner_find(lr, owner);
@@ -1300,7 +1300,7 @@ lr_result_t lr_debug_circular_structure(struct linked_ring *lr,
 }
 
 /* Debug function to show the relinked structure after operations */
-void lr_debug_relinked_structure(struct linked_ring *lr)
+void lr_debug_structure_relinked(struct linked_ring *lr)
 {
     if (lr == NULL || lr->cells == NULL) {
         printf("\033[31mERROR: Cannot debug NULL buffer or cells\033[0m\n");
