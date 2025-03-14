@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h> // For strcmp
 #include <unistd.h> // For usleep
 #include <time.h>   // For timing statistics
 
@@ -312,7 +313,7 @@ void *put_only_data(void *data_in)
     thread_stats[owner].total_operations++;
     
     // Generate unique data for this thread and iteration
-    lr_data_t data = (owner + 1) * 1000 + pthread_self() % 1000;
+    lr_data_t data = (owner + 1) * 1000 + (uintptr_t)pthread_self() % 1000;
     
     clock_gettime(CLOCK_MONOTONIC, &start_time);
     do {
