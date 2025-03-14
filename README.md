@@ -42,14 +42,7 @@ The project includes several test suites to verify functionality:
 # Build and run all tests
 cd build
 make test
-
-# Run specific tests
-./test/basic
-./test/circular_test
-./test/push_pop_test
-./test/multi_thread
-./test/edge_cases
-./test/resize_test
+ctest
 ```
 
 ## Basic Usage
