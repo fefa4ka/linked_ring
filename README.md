@@ -23,6 +23,44 @@ The Linked Ring Buffer provides an efficient way to manage data in a circular bu
 - String operations for text processing
 - Buffer resizing capability
 
+## Memory Efficiency
+
+The Linked Ring Buffer provides significant memory savings compared to traditional ring buffers when dealing with multiple producers/consumers:
+
+### Traditional Approach
+With traditional ring buffers, each producer-consumer pair typically requires its own dedicated buffer:
+
+```
+N pairs × Buffer Size = Total Memory Required
+
+Example: 5 pairs with 100-element buffers = 500 elements
+```
+
+### Linked Ring Approach
+With the Linked Ring Buffer, a single buffer can be shared among all producers and consumers:
+
+```
+1 buffer + N owner cells = Total Memory Required
+
+Example: 5 pairs with a 100-element shared buffer = 100 + 5 = 105 elements
+```
+
+### Memory Savings Calculation
+```
+Memory Savings = (N × Buffer Size) - (Buffer Size + N)
+                = Buffer Size × (N - 1) - N
+                
+Example: With 5 pairs and 100-element buffers
+         Savings = 100 × (5 - 1) - 5 = 395 elements (79% reduction)
+```
+
+The memory savings increase with:
+1. More producer-consumer pairs
+2. Larger buffer sizes
+3. Uneven usage patterns (some producers are idle while others are active)
+
+For embedded systems with limited memory, these savings can be crucial.
+
 ## Building
 
 The project uses CMake for building:
