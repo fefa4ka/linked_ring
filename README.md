@@ -108,6 +108,41 @@ struct lr_mutex_attr mutex_attr = {
 lr_set_mutex(&buffer, &mutex_attr);
 ```
 
+## API Reference
+
+### Buffer Management
+- `lr_init(lr, size, cells)` - Initialize a new buffer
+- `lr_resize(lr, size, cells)` - Resize an existing buffer
+- `lr_set_mutex(lr, attr)` - Set mutex for thread-safe operations
+
+### Data Operations (FIFO)
+- `lr_put(lr, data, owner)` - Add data to head of buffer
+- `lr_get(lr, &data, owner)` - Get data from head of buffer
+- `lr_read(lr, &data, owner)` - Read data without removing it
+
+### Data Operations (LIFO)
+- `lr_push(lr, data, owner)` - Add data to tail of buffer
+- `lr_pop(lr, &data, owner)` - Get data from tail of buffer
+
+### String Operations
+- `lr_put_string(lr, data, owner)` - Add string to buffer
+- `lr_read_string(lr, data, &length, owner)` - Read string from buffer
+
+### Advanced Operations
+- `lr_insert(lr, data, owner, index)` - Insert data at specific index
+- `lr_pull(lr, &data, owner, index)` - Remove data from specific index
+
+### Owner Management
+- `lr_owner_find(lr, owner)` - Find owner cell
+- `lr_count_owned(lr, owner)` - Count elements for an owner
+- `lr_count(lr)` - Count all elements in buffer
+
+### Debugging
+- `lr_dump(lr)` - Print buffer contents
+- `lr_debug_structure_circular(lr, owner)` - Verify circular structure
+- `lr_debug_strucuture_cells(lr)` - Debug cell structure
+- `lr_debug_structure_relinked(lr)` - Debug relinked structure
+
 ## License
 
 This project is available under the MIT License.
