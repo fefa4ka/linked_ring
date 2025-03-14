@@ -38,7 +38,8 @@ typedef enum {
     OP_GET_ONLY,      // Only get operations
     OP_MIXED,         // Random mix of puts and gets
     OP_PUSH_POP,      // Push followed by pop
-    OP_RAPID_CYCLE    // Rapid cycling between operations
+    OP_RAPID_CYCLE,   // Rapid cycling between operations
+    OP_DATA_INTEGRITY // Test with data integrity checks
 } test_operation_t;
 
 // Statistics structure to track thread performance
@@ -555,6 +556,99 @@ void *push_pop_data(void *data_in)
     pthread_exit((void *)result);
 }
 
+// Data integrity test function
+void *data_integrity_test(void *data_in)
+{
+    unsigned int owner = *((unsigned int *)data_in);
+    enum lr_result result;
+    struct timespec start_time;
+    double operation_time_ms = 0;
+    
+    // Create a unique pattern for this thread that won't conflict with others
+    // Each thread will only read/write its own pattern
+    lr_data_t base_pattern = (owner + 1) * 10000;
+    
+    for (unsigned int i = 0; i < test_config.iterations; i++) {
+        thread_stats[owner].total_operations++;
+        
+        // Generate unique data with sequence number
+        lr_data_t data = base_pattern + i;
+        
+        // Put operation with retry
+        int retry_count = 0;
+        const int max_retries = 5;
+        
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        do {
+            result = lr_put(&buffer, data, owner);
+            if (result == LR_OK) {
+                if (test_config.verbose_output) {
+                    log_info("Thread %d: Put data %lu to owner %d", 
+                            (int)pthread_self(), data, owner);
+                }
+                thread_stats[owner].successful_puts++;
+                break;
+            } else if (result == LR_ERROR_LOCK) {
+                usleep(test_config.sleep_interval_us);
+                thread_stats[owner].lock_contentions++;
+            } else if (result == LR_ERROR_BUFFER_FULL) {
+                thread_stats[owner].buffer_full_count++;
+            }
+            retry_count++;
+        } while (result != LR_ERROR_BUFFER_FULL && retry_count < max_retries);
+        
+        operation_time_ms = measure_time_ms(&start_time);
+        if (result == LR_OK) {
+            update_put_stats(owner, operation_time_ms);
+        } else {
+            thread_stats[owner].failed_puts++;
+            continue; // Skip get if put failed
+        }
+        
+        // Small sleep to simulate real workload
+        usleep(1000);
+        
+        // Get operation with retry
+        retry_count = 0;
+        lr_data_t read;
+        
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
+        do {
+            result = lr_get(&buffer, &read, owner);
+            if (result == LR_OK) {
+                if (test_config.verbose_output) {
+                    log_info("Thread %d: Got data %lu from owner %d", 
+                            (int)pthread_self(), read, owner);
+                }
+                thread_stats[owner].successful_gets++;
+                break;
+            } else if (result == LR_ERROR_LOCK) {
+                usleep(test_config.sleep_interval_us);
+                thread_stats[owner].lock_contentions++;
+            } else if (result == LR_ERROR_BUFFER_EMPTY) {
+                thread_stats[owner].buffer_empty_count++;
+            }
+            retry_count++;
+        } while (retry_count < max_retries);
+        
+        operation_time_ms = measure_time_ms(&start_time);
+        if (result == LR_OK) {
+            update_get_stats(owner, operation_time_ms);
+            
+            // Verify data integrity - should match our pattern
+            if (read != data) {
+                log_error("Thread %d: Data integrity error %lu != %lu", 
+                         (int)pthread_self(), read, data);
+                return (void *)LR_ERROR_UNKNOWN;
+            }
+        } else {
+            thread_stats[owner].failed_gets++;
+        }
+    }
+    
+    return (void *)LR_OK;
+}
+
 // Rapid cycling test function
 void *rapid_cycle_operations(void *data_in)
 {
@@ -595,9 +689,8 @@ void *rapid_cycle_operations(void *data_in)
             operation_time_ms = measure_time_ms(&start_time);
             update_get_stats(owner, operation_time_ms);
             
-            if (read != data) {
-                log_error("Thread %d: Data mismatch %lu != %lu", (int)pthread_self(), read, data);
-            }
+            // In rapid cycle stress tests, we don't check data matching
+            // because other threads might have modified the data between put and get
         } else if (result == LR_ERROR_LOCK) {
             thread_stats[owner].lock_contentions++;
             thread_stats[owner].failed_gets++;
@@ -625,6 +718,8 @@ void *(*get_test_function(test_operation_t operation))(void *) {
             return push_pop_data;
         case OP_RAPID_CYCLE:
             return rapid_cycle_operations;
+        case OP_DATA_INTEGRITY:
+            return data_integrity_test;
         default:
             return put_get_data;
     }
@@ -645,6 +740,8 @@ const char* get_operation_name(test_operation_t operation) {
             return "Push-Pop";
         case OP_RAPID_CYCLE:
             return "Rapid-Cycle";
+        case OP_DATA_INTEGRITY:
+            return "Data-Integrity";
         default:
             return "Unknown";
     }
@@ -922,6 +1019,7 @@ void print_usage(const char* program_name) {
     printf("                         3: Mixed\n");
     printf("                         4: Push-Pop\n");
     printf("                         5: Rapid-Cycle\n");
+    printf("                         6: Data-Integrity\n");
     printf("  -v, --verbose         Enable verbose output\n");
     printf("  -h, --help            Display this help message\n");
     printf("\nExample: %s -t 4 -b 8 -i 10 -o 3\n", program_name);
@@ -955,7 +1053,7 @@ void parse_args(int argc, char **argv) {
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--operation") == 0) {
             if (i + 1 < argc) {
                 int op = atoi(argv[++i]);
-                if (op >= 0 && op <= 5) {
+                if (op >= 0 && op <= 6) {
                     test_config.operation = (test_operation_t)op;
                 }
             }
