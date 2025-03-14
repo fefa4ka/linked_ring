@@ -119,9 +119,9 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
                               struct lr_cell     *owner_cell);
 #define lr_owner_tail(owner_cell) owner_cell->next
 
-/* not thread-safe */
+/* For debug purposes */
 lr_result_t lr_dump(struct linked_ring *lr);
-void lr_debug_cells_structure(struct linked_ring *lr);
-lr_result_t lr_debug_circular_structure(struct linked_ring *lr, lr_owner_t owner);
-void lr_debug_relinked_structure(struct linked_ring *lr);
+void lr_debug_strucuture_cells(struct linked_ring *lr);
+lr_result_t lr_debug_structure_circular(struct linked_ring *lr, lr_owner_t owner);
+void lr_debug_structure_relinked(struct linked_ring *lr);
 
