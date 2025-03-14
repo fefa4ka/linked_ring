@@ -749,7 +749,7 @@ const char* get_operation_name(test_operation_t operation) {
 
 // Print thread statistics
 void print_thread_statistics(unsigned int num_threads, const char* mutex_type) {
-    printf("\n┌───────────────────────────────────────────────────────────────────────────────────────────┐\n");
+    printf("\n┌─────────────────────────────────────────────────────────────────────────────────────────────┐\n");
     printf("│         \033[1mThread Statistics with %s (%s operations)\033[0m         │\n", 
            mutex_type, get_operation_name(test_config.operation));
     printf("├─────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┬───────┤\n");
@@ -818,7 +818,7 @@ void print_thread_statistics(unsigned int num_threads, const char* mutex_type) {
     
     // Print buffer statistics
     printf("\n┌───────────────────────────────────────────────────┐\n");
-    printf("│         \033[1mBuffer Statistics\033[0m                    │\n");
+    printf("│              \033[1mBuffer Statistics\033[0m                    │\n");
     printf("├───────────────────────────────┬───────────────────┤\n");
     printf("│ Buffer size                   │ %17u │\n", test_config.buffer_size);
     printf("│ Success rate                  │ %16.2f%% │\n", 
@@ -1072,7 +1072,7 @@ lr_result_t run_all_test_scenarios(unsigned int num_threads) {
     test_operation_t original_op = test_config.operation;
     
     printf("\n┌───────────────────────────────────────────────────────────┐\n");
-    printf("│         \033[1mRunning All Test Scenarios\033[0m                  │\n");
+    printf("│               \033[1mRunning All Test Scenarios\033[0m                  │\n");
     printf("└───────────────────────────────────────────────────────────┘\n");
     
     // Run each operation type
@@ -1109,7 +1109,7 @@ int main(int argc, char **argv)
     parse_args(argc, argv);
     
     printf("\n┌───────────────────────────────────────────────────────────┐\n");
-    printf("│         \033[1mMulti-threaded Buffer Test\033[0m                  │\n");
+    printf("│               \033[1mMulti-threaded Buffer Test\033[0m                  │\n");
     printf("└───────────────────────────────────────────────────────────┘\n");
     printf("Configuration:\n");
     printf("  Threads:    %u\n", test_config.num_threads);
@@ -1143,7 +1143,7 @@ int main(int argc, char **argv)
     }
     
     printf("\n┌───────────────────────────────────────────────────────────┐\n");
-    printf("│         \033[1mTest Summary\033[0m                                │\n");
+    printf("│               \033[1mTest Summary\033[0m                                │\n");
     printf("└───────────────────────────────────────────────────────────┘\n");
     printf("Threads:    %u\n", test_config.num_threads);
     printf("Buffer:     %u\n", test_config.buffer_size > 0 ? test_config.buffer_size : test_config.num_threads);

@@ -4,6 +4,32 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Lock the mutex if lock function provided, no op otherwise */
+#define lock(lr)                                                               \
+    do {                                                                       \
+        if (lr->lock != NULL) {                                                \
+            enum lr_result ret = lr->lock(lr->mutex_state);                    \
+            if (ret != LR_OK) {                                                \
+                return ret;                                                    \
+            }                                                                  \
+        }                                                                      \
+    } while (0)
+
+#define unlock(lr)                                                             \
+    if (lr->lock != NULL) {                                                    \
+        lr->unlock(lr->mutex_state);                                           \
+    }
+
+/* Unlock the mutex if unlock function provided and then return ret  */
+#define unlock_and_return(lr, ret)                                             \
+    do {                                                                       \
+        unlock(lr);                                                            \
+        return ret;                                                            \
+    } while (0)
+
+/* Additional overload for returning success */
+#define unlock_and_succeed(lr) unlock_and_return(lr, LR_OK)
+
 /**
  * Initialize a new linked ring buffer.
  *
@@ -119,30 +145,6 @@ lr_result_t lr_resize(struct linked_ring *lr, size_t size,
 
     return LR_OK;
 }
-
-
-/* Lock the mutex if lock function provided, no op otherwise */
-#define lock(lr)                                                               \
-    do {                                                                       \
-        if (lr->lock != NULL) {                                                \
-            enum lr_result ret = lr->lock(lr->mutex_state);                    \
-            if (ret != LR_OK) {                                                \
-                return ret;                                                    \
-            }                                                                  \
-        }                                                                      \
-    } while (0)
-
-/* Unlock the mutex if unlock function provided and then return ret  */
-#define unlock_and_return(lr, ret)                                             \
-    do {                                                                       \
-        if (lr->unlock != NULL) {                                              \
-            return lr->unlock(lr->mutex_state);                                \
-        }                                                                      \
-        return ret;                                                            \
-    } while (0)
-
-/* Additional overload for returning success */
-#define unlock_and_succeed(lr) unlock_and_return(lr, LR_OK)
 
 
 struct lr_cell *lr_owner_find(struct linked_ring *lr, lr_data_t owner)
@@ -588,6 +590,7 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
     tail = lr_owner_tail(owner_cell);
 
     if (!tail) {
+	unlock(lr);
         return lr_put(lr, data, owner);
     }
 
@@ -601,6 +604,7 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
         /* When inserting at the beginning */
         cell->next             = head;
         prev_owner->next->next = cell;
+
         unlock_and_return(lr, LR_OK);
     } else {
         needle     = head;
