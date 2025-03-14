@@ -15,6 +15,12 @@
 /**
  * @defgroup Types Basic Types
  * @{
+ * 
+ * @note Thread Safety:
+ * Functions in this library are generally not thread-safe unless a mutex is provided
+ * via lr_set_mutex(). Functions that acquire and release the mutex internally are
+ * marked as "Thread-safe with mutex". Functions that don't use the mutex or require
+ * external synchronization are marked as "Not thread-safe".
  */
 
 /** Type for storing data in the linked ring buffer */
@@ -177,6 +183,8 @@ struct lr_mutex_attr {
  * 
  * @return LR_OK if the initialization was successful
  * @return LR_ERROR_NOMEMORY if the cells parameter is NULL or size is 0
+ * 
+ * @note Thread safety: Not thread-safe. Should be called before any threads access the buffer.
  */
 lr_result_t lr_init(struct linked_ring *lr, size_t size, struct lr_cell *cells);
 
@@ -192,6 +200,9 @@ lr_result_t lr_init(struct linked_ring *lr, size_t size, struct lr_cell *cells);
  * 
  * @return LR_OK if the resize was successful
  * @return LR_ERROR_NOMEMORY if the cells parameter is NULL or size is 0
+ * 
+ * @note Thread safety: Not thread-safe. All threads must stop accessing the buffer
+ *       before calling this function.
  */
 lr_result_t lr_resize(struct linked_ring *lr, size_t size, struct lr_cell *cells);
 
@@ -200,6 +211,8 @@ lr_result_t lr_resize(struct linked_ring *lr, size_t size, struct lr_cell *cells
  * 
  * @param lr Pointer to the linked ring structure
  * @param attr Mutex attributes
+ * 
+ * @note Thread safety: Not thread-safe. Should be called before any threads access the buffer.
  */
 void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
 
@@ -219,6 +232,9 @@ void lr_set_mutex(struct linked_ring *lr, struct lr_mutex_attr *attr);
  * 
  * @return LR_OK if the element was successfully added
  * @return LR_ERROR_BUFFER_FULL if the buffer is full
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 
@@ -231,6 +247,9 @@ lr_result_t lr_put(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
  * 
  * @return LR_OK if the element was successfully added
  * @return LR_ERROR_BUFFER_FULL if the buffer is full
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
 
@@ -244,6 +263,9 @@ lr_result_t lr_push(struct linked_ring *lr, lr_data_t data, lr_owner_t owner);
  * 
  * @return LR_OK if the element was successfully added
  * @return LR_ERROR_BUFFER_FULL if the buffer is full
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_owner_t owner, size_t index);
 
@@ -256,6 +278,9 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_owner_t owner, 
  * 
  * @return LR_OK if the element was successfully added
  * @return LR_ERROR_BUFFER_FULL if the buffer is full
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data, struct lr_cell *needle);
 
@@ -268,6 +293,10 @@ lr_result_t lr_insert_next(struct linked_ring *lr, lr_data_t data, struct lr_cel
  * 
  * @return LR_OK if the string was successfully added
  * @return LR_ERROR_BUFFER_FULL if the buffer is full
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally
+ *       for each character, but not atomic for the entire string.
  */
 lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data, lr_owner_t owner);
 
@@ -280,6 +309,9 @@ lr_result_t lr_put_string(struct linked_ring *lr, unsigned char *data, lr_owner_
  * 
  * @return LR_OK if the element was successfully retrieved
  * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
 
@@ -292,6 +324,9 @@ lr_result_t lr_get(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
  * 
  * @return LR_OK if the element was successfully retrieved
  * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
 
@@ -305,6 +340,9 @@ lr_result_t lr_pop(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
  * 
  * @return LR_OK if the element was successfully retrieved
  * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner or index is invalid
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner, size_t index);
 
@@ -317,6 +355,9 @@ lr_result_t lr_pull(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner, s
  * 
  * @return LR_OK if the element was successfully read
  * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_read(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
 
@@ -330,6 +371,9 @@ lr_result_t lr_read(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
  * 
  * @return LR_OK if the string was successfully read
  * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data, size_t *length, lr_owner_t owner);
 
@@ -347,6 +391,10 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data, size_t *
  * @param owner The owner ID to find
  * 
  * @return Pointer to the owner cell if found, NULL otherwise
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called from within functions that have already acquired
+ *       the mutex or in single-threaded contexts.
  */
 struct lr_cell *lr_owner_find(struct linked_ring *lr, lr_data_t owner);
 
@@ -356,6 +404,10 @@ struct lr_cell *lr_owner_find(struct linked_ring *lr, lr_data_t owner);
  * @param lr Pointer to the linked ring structure
  * 
  * @return Pointer to the allocated owner cell if successful, NULL otherwise
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called from within functions that have already acquired
+ *       the mutex or in single-threaded contexts.
  */
 struct lr_cell *lr_owner_allocate(struct linked_ring *lr);
 
@@ -366,6 +418,10 @@ struct lr_cell *lr_owner_allocate(struct linked_ring *lr);
  * @param owner_cell Pointer to the owner cell
  * 
  * @return Pointer to the head cell
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called from within functions that have already acquired
+ *       the mutex or in single-threaded contexts.
  */
 struct lr_cell *lr_owner_head(struct linked_ring *lr, struct lr_cell *owner_cell);
 
@@ -377,6 +433,8 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr, struct lr_cell *owner_cell
  * @param owner The owner ID
  * 
  * @return Number of elements owned by the specified owner (up to the limit if specified)
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 size_t lr_count_limited_owned(struct linked_ring *lr, size_t limit, lr_owner_t owner);
 
@@ -386,6 +444,8 @@ size_t lr_count_limited_owned(struct linked_ring *lr, size_t limit, lr_owner_t o
  * @param lr Pointer to the linked ring structure
  * 
  * @return Total number of elements in the buffer
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
  */
 size_t lr_count(struct linked_ring *lr);
 
@@ -402,6 +462,10 @@ size_t lr_count(struct linked_ring *lr);
  * @param lr Pointer to the linked ring structure
  * 
  * @return LR_OK if successful, error code otherwise
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
+ *       However, the buffer state may change between acquiring and releasing the mutex
+ *       for different operations within this function.
  */
 lr_result_t lr_dump(struct linked_ring *lr);
 
@@ -409,6 +473,10 @@ lr_result_t lr_dump(struct linked_ring *lr);
  * @brief Debug the cell structure
  * 
  * @param lr Pointer to the linked ring structure
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called in single-threaded contexts or when no other
+ *       threads are accessing the buffer.
  */
 void lr_debug_strucuture_cells(struct linked_ring *lr);
 
@@ -419,6 +487,10 @@ void lr_debug_strucuture_cells(struct linked_ring *lr);
  * @param owner The owner ID
  * 
  * @return LR_OK if successful, error code otherwise
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called in single-threaded contexts or when no other
+ *       threads are accessing the buffer.
  */
 lr_result_t lr_debug_structure_circular(struct linked_ring *lr, lr_owner_t owner);
 
@@ -426,6 +498,10 @@ lr_result_t lr_debug_structure_circular(struct linked_ring *lr, lr_owner_t owner
  * @brief Debug the relinked structure after operations
  * 
  * @param lr Pointer to the linked ring structure
+ * 
+ * @note Thread safety: Not thread-safe. This function does not acquire the mutex
+ *       and should only be called in single-threaded contexts or when no other
+ *       threads are accessing the buffer.
  */
 void lr_debug_structure_relinked(struct linked_ring *lr);
 
