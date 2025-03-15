@@ -46,7 +46,8 @@ typedef enum lr_result {
     LR_ERROR_UNLOCK,         /**< Failed to release lock */
     LR_ERROR_BUFFER_FULL,    /**< Buffer is full */
     LR_ERROR_BUFFER_EMPTY,   /**< Buffer is empty */
-    LR_ERROR_BUFFER_BUSY     /**< Buffer is currently in use */
+    LR_ERROR_BUFFER_BUSY,    /**< Buffer is currently in use */
+    LR_ERROR_INVALID_INDEX
 } lr_result_t;
 
 /** @} */ /* end of Types group */

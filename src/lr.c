@@ -692,6 +692,46 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
     unlock_and_return(lr, LR_OK);
 }
 
+/* Read a character at a specific index without removing it */
+lr_result_t lr_read_at(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner, size_t index)
+{
+    struct lr_cell *head;
+    struct lr_cell *needle;
+    struct lr_cell *owner_cell;
+    size_t count = 0;
+
+    lock(lr);
+
+    /* Find the owner cell */
+    owner_cell = lr_owner_find(lr, owner);
+    if (owner_cell == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
+
+    /* Get the head of the owner's data */
+    head = lr_owner_head(lr, owner_cell);
+    if (head == NULL) {
+        unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
+    }
+
+    /* Traverse to the specified index */
+    needle = head;
+    while (count < index) {
+        if (needle->next == head) {
+            /* Reached the end before finding the index */
+            unlock_and_return(lr, LR_ERROR_INVALID_INDEX);
+        }
+        needle = needle->next;
+        count++;
+    }
+
+    /* Return the data at the specified index */
+    *data = needle->data;
+
+    unlock_and_return(lr, LR_OK);
+}
+
+
 /**
  * Retrieve the next element from the linked ring buffer.
  *
