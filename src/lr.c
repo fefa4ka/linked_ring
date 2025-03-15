@@ -173,26 +173,25 @@ struct lr_cell *lr_owner_head(struct linked_ring *lr,
          * to link with owner_cell head
          */
         if (lr->owners != NULL && lr->owners->next != NULL) {
-            head = lr->owners->next->next;
+            return lr->owners->next->next;
         } else {
-            /* No valid head found */
-            return NULL;
+            prev_owner = lr->owners + 1; /* Owners stored in reverse order */
         }
     } else {
         /* For any other cell, the prev owner is used for head linkage */
         prev_owner = owner_cell + 1; /* Owners stored in reverse order */
-
-        while (prev_owner->next == NULL && prev_owner < last_cell) {
-            prev_owner += 1;
-        }
-
-        if (prev_owner->next == NULL) {
-            /* No valid head found */
-            return NULL;
-        }
-
-        head = prev_owner->next->next;
     }
+
+    while (prev_owner->next == NULL && prev_owner < last_cell) {
+        prev_owner += 1;
+    }
+
+    if (prev_owner->next == NULL) {
+        /* No valid head found */
+        return NULL;
+    }
+
+    head = prev_owner->next->next;
 
     return head;
 }
@@ -414,7 +413,14 @@ size_t lr_count(struct linked_ring *lr)
         unlock_and_return(lr, length);
     }
 
-    head   = lr->owners->next;
+
+    struct lr_cell *owner_cell = lr->owners;
+    while (owner_cell->next == NULL) {
+        owner_cell++;
+    }
+
+    head = owner_cell->next->next;
+
     length = 1;
     needle = head;
     while (needle->next != head) {
@@ -590,7 +596,7 @@ lr_result_t lr_insert(struct linked_ring *lr, lr_data_t data, lr_data_t owner,
     tail = lr_owner_tail(owner_cell);
 
     if (!tail) {
-	unlock(lr);
+        unlock(lr);
         return lr_put(lr, data, owner);
     }
 
@@ -1099,6 +1105,11 @@ lr_result_t lr_print(struct linked_ring *lr)
             printf("\n\033[1;32mOwner: %lu\033[0m\n", owner_cell->data);
         }
 
+        if (owner_cell->next == NULL) {
+            printf("\033[31mERROR: Owner cell is empty\033[0m\n");
+            continue;
+        }
+
         head = lr_owner_head(lr, owner_cell);
         tail = lr_owner_tail(owner_cell);
 
@@ -1167,7 +1178,12 @@ lr_result_t lr_dump(struct linked_ring *lr)
     lock(lr);
     head = NULL;
     if (lr->owners) {
-        head = lr->owners->next->next;
+        struct lr_cell *owner_cell = lr->owners;
+        while (owner_cell->next == NULL) {
+            owner_cell++;
+        }
+
+        head = owner_cell->next->next;
     }
 
     // Calculate buffer usage percentage
