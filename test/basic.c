@@ -30,6 +30,7 @@ lr_result_t test_multiple_owners();
 lr_result_t test_buffer_boundaries();
 lr_result_t test_string_operations();
 lr_result_t test_insert_operations();
+lr_result_t test_read_at_operations();
 lr_result_t test_edge_cases();
 lr_result_t test_buffer_recovery();
 lr_result_t test_owner_interactions();
@@ -79,6 +80,10 @@ lr_result_t run_all_tests()
         return result;
 
     result = test_insert_operations();
+    if (result != LR_OK)
+        return result;
+
+    result = test_read_at_operations();
     if (result != LR_OK)
         return result;
 
@@ -355,6 +360,66 @@ lr_result_t test_string_operations()
 
 
     lr_dump(&buffer);
+    /* Clean up */
+    free(cells);
+
+    return LR_OK;
+}
+
+/* Test read_at operations */
+lr_result_t test_read_at_operations()
+{
+    lr_result_t        result;
+    struct lr_cell    *cells;
+    lr_data_t          data;
+    const unsigned int size = 10;
+
+    log_info("Testing read_at operations...");
+
+    /* Initialize buffer */
+    cells  = malloc(size * sizeof(struct lr_cell));
+    result = lr_init(&buffer, size, cells);
+    test_assert(result == LR_OK, "Buffer initialization should succeed");
+
+    /* Test read from empty buffer */
+    result = lr_read_at(&buffer, &data, 1, 0);
+    test_assert(result == LR_ERROR_BUFFER_EMPTY,
+                "Read from empty buffer should return BUFFER_EMPTY");
+
+    /* Add test data */
+    result = lr_put(&buffer, 'A', 1);
+    test_assert(result == LR_OK, "Put 'A' should succeed");
+    result = lr_put(&buffer, 'B', 1);
+    test_assert(result == LR_OK, "Put 'B' should succeed");
+    result = lr_put(&buffer, 'C', 1);
+    test_assert(result == LR_OK, "Put 'C' should succeed");
+
+    /* Test valid reads */
+    result = lr_read_at(&buffer, &data, 1, 0);
+    test_assert(result == LR_OK && data == 'A',
+                "Index 0 should be 'A', got '%c'", (char)data);
+
+    result = lr_read_at(&buffer, &data, 1, 1);
+    test_assert(result == LR_OK && data == 'B',
+                "Index 1 should be 'B', got '%c'", (char)data);
+
+    result = lr_read_at(&buffer, &data, 1, 2);
+    test_assert(result == LR_OK && data == 'C',
+                "Index 2 should be 'C', got '%c'", (char)data);
+
+    /* Test invalid indices */
+    result = lr_read_at(&buffer, &data, 1, 3);
+    test_assert(result == LR_ERROR_INVALID_INDEX,
+                "Index 3 should return INVALID_INDEX");
+
+    result = lr_read_at(&buffer, &data, 1, -1);
+    test_assert(result == LR_ERROR_INVALID_INDEX,
+                "Negative index should return INVALID_INDEX");
+
+    /* Verify data remains in buffer after reads */
+    test_assert(lr_count_owned(&buffer, 1) == 3,
+                "Buffer should still contain 3 elements after reads");
+
     /* Clean up */
     free(cells);
 
