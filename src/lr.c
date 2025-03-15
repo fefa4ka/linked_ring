@@ -696,6 +696,7 @@ lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data,
 lr_result_t lr_read_at(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner, size_t index)
 {
     struct lr_cell *head;
+    struct lr_cell *tail;
     struct lr_cell *needle;
     struct lr_cell *owner_cell;
     size_t count = 0;
@@ -710,14 +711,15 @@ lr_result_t lr_read_at(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner
 
     /* Get the head of the owner's data */
     head = lr_owner_head(lr, owner_cell);
-    if (head == NULL) {
+    tail = lr_owner_tail(owner_cell);
+    if (head == NULL || tail == NULL) {
         unlock_and_return(lr, LR_ERROR_BUFFER_EMPTY);
     }
 
     /* Traverse to the specified index */
     needle = head;
     while (count < index) {
-        if (needle->next == head) {
+        if (needle == tail) {
             /* Reached the end before finding the index */
             unlock_and_return(lr, LR_ERROR_INVALID_INDEX);
         }
@@ -729,7 +731,7 @@ lr_result_t lr_read_at(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner
     *data = needle->data;
 
     unlock_and_return(lr, LR_OK);
-}
+}           
 
 
 /**
