@@ -377,6 +377,23 @@ lr_result_t lr_read(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner);
  */
 lr_result_t lr_read_string(struct linked_ring *lr, unsigned char *data, size_t *length, lr_owner_t owner);
 
+/**
+ * @brief Read a character at a specific index without removing it
+ * 
+ * @param lr Pointer to the linked ring structure
+ * @param data Pointer to store the read character
+ * @param owner The owner of the character to read
+ * @param index The index of the character to read
+ * 
+ * @return LR_OK if the character was successfully read
+ * @return LR_ERROR_BUFFER_EMPTY if the buffer is empty for this owner
+ * @return LR_ERROR_INVALID_INDEX if the index is out of bounds
+ * @return LR_ERROR_LOCK if mutex acquisition failed
+ * 
+ * @note Thread safety: Thread-safe with mutex. Acquires and releases mutex internally.
+ */
+lr_result_t lr_read_at(struct linked_ring *lr, lr_data_t *data, lr_owner_t owner, size_t index);
+
 /** @} */ /* end of DataOperations group */
 
 /**
