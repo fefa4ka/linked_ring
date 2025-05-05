@@ -2,8 +2,9 @@
 
 > **The Ultimate Memory-Efficient Buffer Solution for Embedded Systems**
 
-For a detailed explanation of the implementation, see [One Size Fits All: Linked Ring Instead of a Ring Buffer](https://blog.devgenius.io/one-size-fits-all-linked-ring-instead-of-a-ring-buffer-d1d69a12bf73).
 Linked Ring Buffer is a high-performance, thread-safe circular buffer implementation designed specifically for embedded systems and memory-constrained environments where every byte counts.
+
+For a detailed explanation of the implementation, see [One Size Fits All: Linked Ring Instead of a Ring Buffer](https://blog.devgenius.io/one-size-fits-all-linked-ring-instead-of-a-ring-buffer-d1d69a12bf73).
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
