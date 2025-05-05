@@ -1,4 +1,5 @@
 .cache/
+.ccls-cache/
 .vscode/
 build/
 .aider*

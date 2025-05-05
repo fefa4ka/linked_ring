@@ -20,6 +20,7 @@ add_lr_test(test_edge_cases edge_cases.c)
 add_lr_test(test_circular circular_test.c)
 add_lr_test(test_push_pop push_pop_test.c)
 add_lr_test(test_resize resize_test.c)
+add_lr_test(test_circular_structure test_circular_structure.c)
 
 # Multi-threaded tests
 set(THREADS_PREFER_PTHREAD_FLAG ON)
